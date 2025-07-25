@@ -16,7 +16,7 @@ export default function NavHeader({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const links = [
-    { id: 1, label: "Public", link: "/" },
+    { id: 1, label: "Public", link: "/public" },
     { id: 2, label: "Voyageurs", link: "/traveler" },
     { id: 3, label: "Hébergeurs", link: "/host" },
     { id: 4, label: "Blog", link: "/blog" },

@@ -20,7 +20,7 @@ export default function LoginPage() {
   // Rediriger si déjà connecté
   useEffect(() => {
     if (session && !sessionLoading) {
-      router.push("/demo/dashboard");
+      router.push("/traveler");
     }
   }, [session, sessionLoading, router]);
 
@@ -40,7 +40,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/public/welcome");
+      router.push("/public/auth/welcome");
     } catch (error) {
       console.error("Erreur d'authentification:", error);
       setError("Une erreur est survenue. Veuillez réessayer.");
