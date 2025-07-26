@@ -272,3 +272,87 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+/*
+Dans "Détail par famille avec fonds améliorés " 
+Creer un section Room et ajoutes les information suivantes 
+model HotelReview {
+  id           String   @id @default(uuid())
+  hotelCardId  String
+  userId       String
+  rating       Float // Note de 1 à 5
+  title        String?
+  comment      String
+  pros         String[] // Points positifs
+  cons         String[] // Points négatifs
+  roomType     String?
+  stayDate     DateTime
+  isVerified   Boolean  @default(false)
+  helpfulCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  hotelCard HotelCard @relation(fields: [hotelCardId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@map("hotel_reviews")
+}
+
+model HotelRoom {
+  id            String   @id @default(uuid())
+  hotelCardId   String
+  name          String
+  description   String?
+  maxGuests     Int
+  bedCount      Int
+  bedType       String
+  roomSize      Float? // en m²
+  pricePerNight Float
+  currency      String   @default("EUR")
+  isAvailable   Boolean  @default(true)
+  images        String[] // URLs des images
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  hotelCard HotelCard @relation(fields: [hotelCardId], references: [id])
+
+  @@map("hotel_rooms")
+}
+
+model HotelPolicy {
+  id           String   @id @default(uuid())
+  hotelCardId  String   @unique
+  checkIn      String // "15:00"
+  checkOut     String // "11:00"
+  cancellation String // Politique d'annulation
+  pets         Boolean  @default(false)
+  smoking      Boolean  @default(false)
+  parties      Boolean  @default(false)
+  children     String? // Politique enfants
+  extraBed     String?
+  breakfast    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  hotelCard HotelCard @relation(fields: [hotelCardId], references: [id])
+
+  @@map("hotel_policies")
+}
+
+model HotelFAQ {
+  id          String   @id @default(uuid())
+  hotelCardId String
+  question    String
+  answer      String
+  category    String // "Général", "Réservation", "Services", etc.
+  order       Int      @default(100)
+  isPopular   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hotelCard HotelCard @relation(fields: [hotelCardId], references: [id])
+
+  @@map("hotel_faqs")
+}
+
+
+*/

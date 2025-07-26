@@ -1,288 +1,242 @@
 // @/components/admin/tablesClassification.tsx
-import { ReactNode } from "react";
+import React from "react";
 import {
   Shield,
-  Globe,
-  Building2,
+  MapPin,
+  Building,
+  Cog,
+  Database,
+  Users,
   Star,
-  Image,
-  Link as LinkIcon,
+  Bed,
+  FileText,
+  HelpCircle,
+  MessageCircle,
 } from "lucide-react";
 
-export interface TableItem {
-  name: string;
-  description: string;
-  count: number;
-  icon: string; // Emoji string
-}
-
-export interface FamilyClassification {
-  family: string;
-  description: string;
-  icon: ReactNode;
-  color: string;
-  borderColor: string;
-  accentColor: string;
-  iconBg: string;
-  tables: TableItem[];
-}
-
-const familyClassification: FamilyClassification[] = [
+const familyClassification = [
   {
-    family: "🔐 Authentification & Utilisateurs",
-    description: "Gestion des comptes, sessions et authentification",
-    icon: <Shield className="h-6 w-6" />,
-    color: "bg-gradient-to-br from-blue-50 via-blue-100 to-indigo-100",
-    borderColor: "border-blue-300",
-    accentColor: "from-blue-500 to-indigo-600",
-    iconBg: "bg-gradient-to-br from-blue-500 to-blue-600",
+    family: "Authentification & Sécurité",
+    description: "Gestion des utilisateurs, sessions et authentification",
+    icon: <Shield className="h-6 w-6 text-red-600" />,
+    color: "bg-gradient-to-br from-red-50 to-pink-50",
+    borderColor: "border-red-200",
+    iconBg: "bg-red-100",
+    accentColor: "from-red-500 to-pink-500",
     tables: [
       {
         name: "User",
-        description: "Utilisateurs principaux",
-        count: 1248,
+        description: "Comptes utilisateurs de la plateforme",
         icon: "👤",
+        count: 1248,
       },
       {
         name: "Session",
-        description: "Sessions actives",
-        count: 42,
-        icon: "🔑",
+        description: "Sessions actives des utilisateurs",
+        icon: "🔐",
+        count: 342,
       },
       {
         name: "Account",
-        description: "Comptes et providers OAuth",
-        count: 1248,
-        icon: "🆔",
+        description: "Comptes de connexion (OAuth, etc.)",
+        icon: "🔑",
+        count: 1456,
       },
       {
         name: "Verification",
-        description: "Vérifications email",
-        count: 156,
+        description: "Codes de vérification email/SMS",
         icon: "✅",
+        count: 89,
       },
     ],
   },
+
   {
-    family: "🌍 Géographie & Destinations",
-    description: "Structure géographique et destinations touristiques",
-    icon: <Globe className="h-6 w-6" />,
-    color: "bg-gradient-to-br from-emerald-50 via-green-100 to-teal-100",
-    borderColor: "border-emerald-300",
-    accentColor: "from-emerald-500 to-teal-600",
-    iconBg: "bg-gradient-to-br from-emerald-500 to-green-600",
+    family: "Géographie & Localisation",
+    description: "Organisation territoriale et géographique",
+    icon: <MapPin className="h-6 w-6 text-green-600" />,
+    color: "bg-gradient-to-br from-green-50 to-emerald-50",
+    borderColor: "border-green-200",
+    iconBg: "bg-green-100",
+    accentColor: "from-green-500 to-emerald-500",
     tables: [
       {
         name: "Country",
-        description: "Pays disponibles",
-        count: 5,
+        description: "Pays disponibles sur la plateforme",
         icon: "🌍",
+        count: 25,
       },
-      { name: "City", description: "Villes par pays", count: 18, icon: "🏙️" },
+      {
+        name: "City",
+        description: "Villes avec hébergements",
+        icon: "🏙️",
+        count: 156,
+      },
       {
         name: "Neighborhood",
-        description: "Quartiers par ville",
-        count: 67,
+        description: "Quartiers et zones locales",
         icon: "🏘️",
+        count: 234,
       },
       {
         name: "Landmark",
-        description: "Points d'intérêt",
-        count: 134,
-        icon: "🗼",
-      },
-      {
-        name: "Destination",
-        description: "Destinations touristiques",
-        count: 24,
-        icon: "✈️",
+        description: "Points d'intérêt touristiques",
+        icon: "🗺️",
+        count: 567,
       },
       {
         name: "Address",
-        description: "Adresses détaillées",
-        count: 234,
+        description: "Adresses physiques complètes",
         icon: "📍",
+        count: 1890,
       },
     ],
   },
+
   {
-    family: "🏨 Hébergements Principaux",
-    description: "Fiches hôtelières et informations principales",
-    icon: <Building2 className="h-6 w-6" />,
-    color: "bg-gradient-to-br from-purple-50 via-violet-100 to-fuchsia-100",
-    borderColor: "border-purple-300",
-    accentColor: "from-purple-500 to-violet-600",
-    iconBg: "bg-gradient-to-br from-purple-500 to-violet-600",
+    family: "Référentiel Hôtelier",
+    description: "Données de référence pour la classification des hébergements",
+    icon: <Building className="h-6 w-6 text-blue-600" />,
+    color: "bg-gradient-to-br from-blue-50 to-cyan-50",
+    borderColor: "border-blue-200",
+    iconBg: "bg-blue-100",
+    accentColor: "from-blue-500 to-cyan-500",
     tables: [
-      {
-        name: "HotelCard",
-        description: "Fiches hôtels principales",
-        count: 156,
-        icon: "🏨",
-      },
-      {
-        name: "HotelDetails",
-        description: "Détails étendus",
-        count: 156,
-        icon: "📋",
-      },
       {
         name: "AccommodationType",
-        description: "Types d'hébergement",
+        description: "Types d'hébergement (Hôtel, Villa, etc.)",
+        icon: "🏨",
         count: 12,
-        icon: "🏠",
       },
       {
-        name: "HotelGroup",
-        description: "Groupes/chaînes hôtelières",
-        count: 8,
-        icon: "🏢",
-      },
-    ],
-  },
-  {
-    family: "⭐ Aménités & Services",
-    description: "Équipements, services et caractéristiques",
-    icon: <Star className="h-6 w-6" />,
-    color: "bg-gradient-to-br from-orange-50 via-amber-100 to-yellow-100",
-    borderColor: "border-orange-300",
-    accentColor: "from-orange-500 to-amber-600",
-    iconBg: "bg-gradient-to-br from-orange-500 to-amber-600",
-    tables: [
-      {
-        name: "HotelAmenity",
-        description: "Aménités hôtel",
+        name: "Destination",
+        description: "Destinations touristiques populaires",
+        icon: "🌟",
         count: 45,
-        icon: "🏊",
-      },
-      {
-        name: "RoomAmenity",
-        description: "Aménités chambre",
-        count: 32,
-        icon: "🛏️",
-      },
-      {
-        name: "HotelHighlight",
-        description: "Points forts",
-        count: 78,
-        icon: "✨",
       },
       {
         name: "Label",
-        description: "Labels & certifications",
-        count: 23,
+        description: "Labels et certifications",
         icon: "🏷️",
+        count: 28,
+      },
+      {
+        name: "HotelGroup",
+        description: "Groupes hôteliers et chaînes",
+        icon: "🏢",
+        count: 18,
+      },
+    ],
+  },
+
+  {
+    family: "Services & Équipements",
+    description: "Équipements, services et options disponibles",
+    icon: <Cog className="h-6 w-6 text-purple-600" />,
+    color: "bg-gradient-to-br from-purple-50 to-violet-50",
+    borderColor: "border-purple-200",
+    iconBg: "bg-purple-100",
+    accentColor: "from-purple-500 to-violet-500",
+    tables: [
+      {
+        name: "HotelAmenity",
+        description: "Équipements de l'hôtel",
+        icon: "🛠️",
+        count: 67,
+      },
+      {
+        name: "RoomAmenity",
+        description: "Équipements des chambres",
+        icon: "🛏️",
+        count: 45,
+      },
+      {
+        name: "HotelHighlight",
+        description: "Points forts mis en avant",
+        icon: "⭐",
+        count: 134,
       },
       {
         name: "AccessibilityOption",
-        description: "Options accessibilité",
-        count: 15,
+        description: "Options d'accessibilité",
         icon: "♿",
+        count: 23,
       },
       {
         name: "HotelParking",
-        description: "Gestion parking",
+        description: "Informations parking",
+        icon: "🅿️",
         count: 89,
-        icon: "🚗",
       },
     ],
   },
+
   {
-    family: "📸 Médias & Contenu",
-    description: "Images et contenu visuel",
-    icon: <Image className="h-6 w-6" />,
-    color: "bg-gradient-to-br from-pink-50 via-rose-100 to-red-100",
-    borderColor: "border-pink-300",
-    accentColor: "from-pink-500 to-rose-600",
-    iconBg: "bg-gradient-to-br from-pink-500 to-rose-600",
+    family: "Hébergement Principal",
+    description: "Données centrales des hébergements et leurs détails",
+    icon: <Database className="h-6 w-6 text-orange-600" />,
+    color: "bg-gradient-to-br from-orange-50 to-amber-50",
+    borderColor: "border-orange-200",
+    iconBg: "bg-orange-100",
+    accentColor: "from-orange-500 to-amber-500",
     tables: [
+      {
+        name: "HotelCard",
+        description: "Fiches synthétiques des hébergements",
+        icon: "🏨",
+        count: 156,
+      },
+      {
+        name: "HotelDetails",
+        description: "Informations détaillées des hôtels",
+        icon: "📋",
+        count: 156,
+      },
       {
         name: "HotelImage",
-        description: "Images des hébergements",
-        count: 1456,
-        icon: "📷",
+        description: "Galerie photos des hébergements",
+        icon: "📸",
+        count: 2340,
       },
     ],
   },
+
+  // 🆕 NOUVELLE SECTION AJOUTÉE
   {
-    family: "🔗 Relations & Jointures",
-    description: "Tables de liaison many-to-many",
-    icon: <LinkIcon className="h-6 w-6" />,
-    color: "bg-gradient-to-br from-indigo-50 via-blue-100 to-cyan-100",
-    borderColor: "border-indigo-300",
-    accentColor: "from-indigo-500 to-cyan-600",
-    iconBg: "bg-gradient-to-br from-indigo-500 to-cyan-600",
+    family: "Réservation & Contenu",
+    description: "Avis clients, chambres, politiques et support",
+    icon: <Users className="h-6 w-6 text-teal-600" />,
+    color: "bg-gradient-to-br from-teal-50 to-cyan-50",
+    borderColor: "border-teal-200",
+    iconBg: "bg-teal-100",
+    accentColor: "from-teal-500 to-cyan-500",
     tables: [
       {
-        name: "HotelCardToHotelHighlight",
-        description: "Hôtel ↔ Points forts",
+        name: "HotelReview",
+        description: "Avis et évaluations des clients",
+        icon: "⭐",
+        count: 3247,
+      },
+      {
+        name: "HotelRoom",
+        description: "Chambres et tarifs disponibles",
+        icon: "🛏️",
+        count: 892,
+      },
+      {
+        name: "HotelPolicy",
+        description: "Conditions et règlements des hôtels",
+        icon: "📜",
         count: 156,
-        icon: "🔗",
       },
       {
-        name: "HotelCardToLabel",
-        description: "Hôtel ↔ Labels",
-        count: 234,
-        icon: "🔗",
-      },
-      {
-        name: "HotelCardToAccessibilityOption",
-        description: "Hôtel ↔ Accessibilité",
-        count: 78,
-        icon: "🔗",
-      },
-      {
-        name: "HotelCardToHotelAmenity",
-        description: "Hôtel ↔ Aménités",
+        name: "HotelFAQ",
+        description: "Questions fréquemment posées",
+        icon: "❓",
         count: 445,
-        icon: "🔗",
-      },
-      {
-        name: "HotelDetailsToRoomAmenity",
-        description: "Détails ↔ Aménités chambre",
-        count: 234,
-        icon: "🔗",
-      },
-      {
-        name: "DestinationToCity",
-        description: "Destination ↔ Villes",
-        count: 45,
-        icon: "🔗",
       },
     ],
   },
 ];
 
 export default familyClassification;
-
-// Export des statistiques calculées pour faciliter la réutilisation
-export const getGlobalStats = () => {
-  const totalUsers =
-    familyClassification[0].tables.find((t) => t.name === "User")?.count || 0;
-  const totalHotels =
-    familyClassification[2].tables.find((t) => t.name === "HotelCard")?.count ||
-    0;
-  const totalDestinations =
-    familyClassification[1].tables.find((t) => t.name === "Destination")
-      ?.count || 0;
-  const totalBookings = 3400; // À connecter avec votre API
-
-  return {
-    users: totalUsers,
-    hotels: totalHotels,
-    destinations: totalDestinations,
-    bookings: totalBookings,
-    usersGrowth: "+12% ce mois",
-    hotelsGrowth: "+8% ce mois",
-    destinationsGrowth: "+3 nouvelles",
-    bookingsGrowth: "+24% ce mois",
-  };
-};
-
-export const getFamilyStats = () => {
-  return familyClassification.map((family) => ({
-    ...family,
-    totalTables: family.tables.length,
-    totalRecords: family.tables.reduce((sum, table) => sum + table.count, 0),
-  }));
-};
