@@ -12,6 +12,9 @@ export default function NavSectionHotel() {
         <p className="m-2">Chambres</p>
       </Link>
       <Link href="/#">
+        <p className="m-2">note de l'hotel</p>
+      </Link>
+      <Link href="/#">
         <p className="m-2">Avis Voyageurs</p>
       </Link>
       <Link href="/#">
@@ -22,6 +25,24 @@ export default function NavSectionHotel() {
       </Link>
       <Link href="/#">
         <p className="m-2">Emplacement</p>
+      </Link>
+      <Link href="/#">
+        <p className="m-2">Emplacement</p>
+      </Link>
+      <Link href="/#">
+        <p className="m-2">Activités</p>
+      </Link>
+      <Link href="/#">
+        <p className="m-2">Accécibilité</p>
+      </Link>
+      <Link href="/#">
+        <p className="m-2">Parking</p>
+      </Link>
+      <Link href="/#">
+        <p className="m-2">Condition</p>
+      </Link>
+      <Link href="/#">
+        <p className="m-2">Faq</p>
       </Link>
     </div>
   );

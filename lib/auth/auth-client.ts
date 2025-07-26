@@ -12,7 +12,7 @@ import type { User, Session, AuthSession } from "./auth";
 import { ROLES, type Role, getRolePermissions } from "@/lib/utils/roles";
 
 export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+  baseURL: process.env.NEXT_PUBLIC_APP_URL,
 });
 
 export const { signIn, signUp, signOut, useSession, getSession, updateUser } =
