@@ -1,4 +1,4 @@
-// @/app/demo/foundeHotels/[id]/page.tsx
+// @/app/public/foundeHotels/[id]/page.tsx
 import InfoHotel from "@/components/hotel/InfoHotel";
 import NavSectionHotel from "@/components/hotel/NavSectionHotel";
 import HeroForm from "@/components/landing/HeroForm";
@@ -10,6 +10,11 @@ import Policy from "@/components/hotel/Policy";
 import Faq from "@/components/hotel/Faq";
 import React from "react";
 import RelatedHotels from "@/components/hotel/RelatedHotels";
+import HotelReview from "@/components/hotel/HotelReview";
+import HotelLocation from "@/components/hotel/HotelLocation";
+import HotelActivities from "@/components/hotel/HotelActivities";
+import HotelAccesibility from "@/components/hotel/HotelAccesibility";
+import HotelParking from "@/components/hotel/HotelParking";
 
 // ✅ Type corrigé pour Next.js 15+
 interface PageProps {
@@ -32,7 +37,7 @@ export default async function Page({ params }: PageProps) {
       </div>
       <br />
       <br />
-      <div className="m-3 bg-amber-100 p-3 rounded-xl">
+      <div className="m-3 bg-amber-300 p-3 rounded-xl">
         <InfoHotel />
       </div>
       <div className="m-3 bg-blue-200 p-3 rounded-xl">
@@ -48,22 +53,27 @@ export default async function Page({ params }: PageProps) {
         <Evaluation />
       </div>
       <div id="reviews" className="m-3 bg-gray-200 p-3 rounded-xl">
-        Avis Voyageurs (à développer)
+        Avis Voyageurs
+        <HotelReview />
       </div>
       <div id="amenities" className="m-3 bg-green-200 p-3 rounded-xl">
         <Amenities />
       </div>
       <div id="location" className="m-3 bg-indigo-200 p-3 rounded-xl">
-        Emplacement (à développer)
+        Emplacement
+        <HotelLocation />
       </div>
       <div id="activities" className="m-3 bg-rose-200 p-3 rounded-xl">
-        Activités (à développer)
+        Activités
+        <HotelActivities />
       </div>
       <div id="accessibility" className="m-3 bg-lime-200 p-3 rounded-xl">
-        Accessibilité (à développer)
+        Accessibilité
+        <HotelAccesibility />
       </div>
       <div id="parking" className="m-3 bg-orange-300 p-3 rounded-xl">
-        Parking (à développer)
+        Parking
+        <HotelParking />
       </div>
       <div id="policies" className="m-3 bg-pink-300 p-3 rounded-xl">
         <Policy hotelId={id} />

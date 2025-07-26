@@ -33,10 +33,12 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  sessions    Session[]
-  accounts    Account[]
-  Address     Address[]
-  HotelReview HotelReview[]
+  sessions     Session[]
+  accounts     Account[]
+  Address      Address[]
+  HotelReview  HotelReview[]
+  Reservation  Reservation[]
+  UserWishList UserWishList[]
 
   @@map("users")
 }
@@ -387,16 +389,23 @@ model HotelCard {
   HotelRoom HotelRoom[]
 
   HotelReview HotelReview[]
+
+  UserWishList UserWishList[]
 }
 
 model HotelDetails {
-  id          String   @id @default(uuid())
-  idHotelCard String
-  description String?
-  addressId   String
-  order       Int?     @default(20)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(uuid())
+  idHotelCard    String
+  description    String?
+  addressId      String
+  order          Int?     @default(20)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  checkInTime    String? // "15:00"
+  checkOutTime   String? // "11:00" 
+  numberOfRooms  Int? // Nombre total de chambres
+  numberOfFloors Int? // Nombre d'étages
+  languages      String[] // Langues parlées à la réception
 
   address Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
 
@@ -431,7 +440,7 @@ model HotelReview {
 }
 
 model HotelRoom {
-  id            String   @id @default(uuid())
+  id            String                 @id @default(uuid())
   hotelCardId   String
   name          String
   description   String?
@@ -440,11 +449,13 @@ model HotelRoom {
   bedType       String
   roomSize      Float? // en m²
   pricePerNight Float
-  currency      String   @default("EUR")
-  isAvailable   Boolean  @default(true)
+  currency      String                 @default("EUR")
+  isAvailable   Boolean                @default(true)
   images        String[] // URLs des images
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  reservations  Reservation[]
+  availability  CalendarAvailability[] // Nouveau modèle pour gérer les disponibilités
 
   hotelCard HotelCard @relation(fields: [hotelCardId], references: [id])
 
@@ -485,6 +496,72 @@ model HotelFAQ {
   hotelCard HotelCard @relation(fields: [hotelCardId], references: [id])
 
   @@map("hotel_faqs")
+}
+
+model CalendarAvailability {
+  id          String   @id @default(uuid())
+  hotelRoomId String
+  date        DateTime // Date spécifique
+  isAvailable Boolean  @default(true)
+  price       Float? // Prix spécifique pour cette date (optionnel)
+
+  hotelRoom HotelRoom @relation(fields: [hotelRoomId], references: [id])
+
+  @@unique([hotelRoomId, date])
+  @@map("calendar_availabilities")
+}
+
+model UserWishList {
+  id          String   @id @default(cuid())
+  userId      String
+  hotelCardId String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hotelCard HotelCard @relation(fields: [hotelCardId], references: [id], onDelete: Cascade)
+
+  // Contrainte d'unicité : un utilisateur ne peut pas ajouter le même hôtel plusieurs fois
+  @@unique([userId, hotelCardId])
+  @@map("user_wish_lists")
+}
+
+model Reservation {
+  id          String   @id @default(uuid())
+  userId      String
+  hotelRoomId String
+  checkIn     DateTime // Date d'arrivée
+  checkOut    DateTime // Date de départ
+  guests      Int      @default(1)
+  totalPrice  Float
+  status      String   @default("confirmed") // "confirmed", "cancelled", "completed"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id])
+  hotelRoom HotelRoom @relation(fields: [hotelRoomId], references: [id])
+
+  // Paiement
+  paymentStatus String    @default("pending") // "pending", "paid", "refunded"
+  paymentMethod String?
+  transactionId String?
+  Payment       Payment[]
+
+  @@map("reservations")
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  reservationId String
+  amount        Float
+  method        String // "card", "paypal", "stripe", etc.
+  status        String   @default("pending") // paid, refunded, failed
+  transactionId String?
+  createdAt     DateTime @default(now())
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
 }
 
 //////////////////////////////
