@@ -155,7 +155,7 @@ model Landmark {
 }
 
 ///////////////////////////////////////
-////     Tables administrateur     /////
+////     Tables host              /////
 ///////////////////////////////////////
 
 // 🏨 Tables de référentiel hôtelier
