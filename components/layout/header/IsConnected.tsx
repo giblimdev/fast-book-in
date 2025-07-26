@@ -86,7 +86,7 @@ export default function IsConnected() {
   const userInitials = getInitials(userDisplayName);
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="ml-5 flex items-center gap-3">
       {/* Badge de rôle */}
       <Badge
         variant={role === "admin" ? "default" : "secondary"}

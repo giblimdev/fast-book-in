@@ -101,17 +101,17 @@ export default function PublicPage() {
 
             <div className="flex flex-wrap justify-center gap-4">
               <Button variant="secondary" asChild>
-                <Link href="/demo">
+                <Link href="/public/foundedHotels">
                   <Building2 className="mr-2 h-4 w-4" />
                   Démo complète
                 </Link>
               </Button>
               <Button
                 variant="outline"
-                className="text-white border-white hover:bg-white hover:text-blue-600"
+                className="text-black border-white hover:bg-white hover:text-blue-600"
                 asChild
               >
-                <Link href="/com">
+                <Link href="/host">
                   <MapPin className="mr-2 h-4 w-4" />À propos du projet
                 </Link>
               </Button>

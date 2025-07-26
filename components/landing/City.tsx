@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 import "keen-slider/keen-slider.min.css";
+import Link from "next/link";
 
 export default function City() {
   const [sliderRef, instanceRef] = useKeenSlider({
@@ -189,9 +190,11 @@ export default function City() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.8 }}
         >
-          <button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-8 py-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-            Voir toutes les destinations
-          </button>
+          <Link href="/public">
+            <button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-8 py-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+              Voir toutes les destinations
+            </button>
+          </Link>
         </motion.div>
       </div>
     </section>

@@ -14,8 +14,6 @@ import InstallApp from "@/components/landing/InstallApp";
 import Landingpromo from "@/components/landing/Landingpromo";
 
 export default function Home() {
-  // Exemple d'objet hotel (non utilisé dans ce composant, mais vous pouvez l'utiliser plus tard)
-
   return (
     <div className="max-w min-h-screen bg-gradient-to-br from-blue-50 to-purple-200 ">
       <div className="">
@@ -47,7 +45,7 @@ export default function Home() {
         <div>
           <BeMember />
         </div>
-        <div>
+        <div id="download-app">
           <InstallApp />
         </div>
         <div>

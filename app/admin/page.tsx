@@ -1,5 +1,8 @@
 // @/app/admin/page.tsx
+"use client";
+
 import React from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -19,9 +22,17 @@ import {
   Folder,
 } from "lucide-react";
 import Stats from "@/components/admin/Stats";
-import familyClassification from "@/components/admin//tablesClassification";
+import familyClassification from "@/components/admin/tablesClassification";
 
 export default function AdminDashboardPage() {
+  // Fonction utilitaire pour convertir le nom de table en URL
+  const getTableUrl = (tableName: string) => {
+    return `/admin/${tableName
+      .replace(/([A-Z])/g, "-$1")
+      .toLowerCase()
+      .replace(/^-/, "")}`;
+  };
+
   // Calcul des statistiques par famille
   const familyStats = familyClassification.map((family) => ({
     ...family,
@@ -121,77 +132,81 @@ export default function AdminDashboardPage() {
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {family.tables.map((table, tableIndex) => (
-                    <Card
+                    <Link
                       key={tableIndex}
-                      className="bg-white/80 backdrop-blur-sm hover:bg-white hover:shadow-lg transition-all duration-300 border-l-4 hover:scale-105"
-                      style={{
-                        borderLeftColor: family.accentColor.includes("blue")
-                          ? "#3b82f6"
-                          : family.accentColor.includes("emerald")
-                          ? "#10b981"
-                          : family.accentColor.includes("purple")
-                          ? "#8b5cf6"
-                          : family.accentColor.includes("orange")
-                          ? "#f59e0b"
-                          : family.accentColor.includes("pink")
-                          ? "#ec4899"
-                          : "#6366f1",
-                      }}
+                      href={getTableUrl(table.name)}
+                      className="group block"
                     >
-                      <CardContent className="p-5">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl">{table.icon}</span>
-                            <div>
-                              <h4 className="font-bold text-gray-900 text-lg">
-                                {table.name}
-                              </h4>
-                              <p className="text-sm text-gray-600 mt-1">
-                                {table.description}
-                              </p>
+                      <Card className="bg-white/80 backdrop-blur-sm hover:bg-white hover:shadow-lg transition-all duration-300 border-l-4 group-hover:scale-105 cursor-pointer h-full">
+                        <CardContent className="p-5">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl group-hover:scale-110 transition-transform duration-200">
+                                {table.icon}
+                              </span>
+                              <div>
+                                <h4 className="font-bold text-gray-900 text-lg group-hover:text-blue-600 transition-colors">
+                                  {table.name}
+                                </h4>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {table.description}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge
+                              className={`bg-gradient-to-r ${family.accentColor} text-white border-0 font-bold group-hover:shadow-lg transition-shadow`}
+                            >
+                              {table.count.toLocaleString()}
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                            <code className="text-xs bg-gray-100 px-3 py-1 rounded-full text-gray-700 font-mono group-hover:bg-blue-100 group-hover:text-blue-700 transition-colors">
+                              {table.name}
+                            </code>
+
+                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 hover:bg-blue-100"
+                                title="Voir"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  // Action de visualisation si nécessaire
+                                }}
+                              >
+                                <Eye className="h-4 w-4 text-blue-600" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 hover:bg-green-100"
+                                title="Modifier"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  // Action de modification si nécessaire
+                                }}
+                              >
+                                <Edit className="h-4 w-4 text-green-600" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 hover:bg-purple-100"
+                                title="Ajouter"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  // Action d'ajout si nécessaire
+                                }}
+                              >
+                                <Plus className="h-4 w-4 text-purple-600" />
+                              </Button>
                             </div>
                           </div>
-                          <Badge
-                            className={`bg-gradient-to-r ${family.accentColor} text-white border-0 font-bold`}
-                          >
-                            {table.count.toLocaleString()}
-                          </Badge>
-                        </div>
-
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                          <code className="text-xs bg-gray-100 px-3 py-1 rounded-full text-gray-700 font-mono">
-                            {table.name}
-                          </code>
-
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0 hover:bg-blue-100"
-                              title="Voir"
-                            >
-                              <Eye className="h-4 w-4 text-blue-600" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0 hover:bg-green-100"
-                              title="Modifier"
-                            >
-                              <Edit className="h-4 w-4 text-green-600" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 w-8 p-0 hover:bg-purple-100"
-                              title="Ajouter"
-                            >
-                              <Plus className="h-4 w-4 text-purple-600" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+                    </Link>
                   ))}
                 </div>
               </CardContent>
@@ -200,8 +215,8 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Actions rapides avec fond coloré */}
-        <Card className="mt-12 bg-gradient-to-r from-slate-100 via-gray-100 to-zinc-100 border-2 border-gray-200 shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-gray-800 to-gray-900 text-white rounded-t-lg">
+        <Card className="mt-12 p-0 bg-gradient-to-r from-slate-100 via-gray-100 to-zinc-100 border-2 border-gray-200 shadow-xl">
+          <CardHeader className="bg-gradient-to-r from-gray-800 to-gray-900 text-white rounded-t-lg p-3">
             <CardTitle className="flex items-center gap-3 text-xl">
               <div className="bg-white/20 p-2 rounded-lg">
                 <BarChart3 className="h-6 w-6" />
@@ -214,10 +229,12 @@ export default function AdminDashboardPage() {
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Button className="h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300">
-                <Plus className="h-5 w-5 mr-2" />
-                Nouveau HotelCard
-              </Button>
+              <Link href="/admin/hotel-card">
+                <Button className="w-full h-14 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all duration-300">
+                  <Plus className="h-5 w-5 mr-2" />
+                  Nouveau HotelCard
+                </Button>
+              </Link>
               <Button
                 variant="outline"
                 className="h-14 border-2 border-emerald-300 hover:bg-emerald-50 hover:border-emerald-400 transition-all duration-300"

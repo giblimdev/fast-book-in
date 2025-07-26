@@ -36,7 +36,7 @@ export default function RegisterPage() {
   // Rediriger si déjà connecté
   useEffect(() => {
     if (session && !sessionLoading) {
-      router.push("/public/welcome");
+      router.push("/public/auth/welcome");
     }
   }, [session, sessionLoading, router]);
 

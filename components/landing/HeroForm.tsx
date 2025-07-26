@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import {
   MapPin,
-  Calendar, 
+  Calendar,
   Users,
   Plus,
   Search,
@@ -232,7 +232,7 @@ export default function HeroForm() {
 
         {/* Bouton Recherche */}
         <div className="lg:col-span-2">
-          <Link href="/demo/findedHotel">
+          <Link href="/public/foundeHotels">
             <button className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-6 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center justify-center">
               <Search className="w-5 h-5 mr-2" />
               Rechercher

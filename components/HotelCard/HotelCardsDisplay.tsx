@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import {
   getAllHotels,
   getPartnerHotels,
@@ -13,7 +14,7 @@ import HotelCard from "@/components/HotelCard/HotelCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Star } from "lucide-react";
+import { Search, Filter, Star, ExternalLink } from "lucide-react";
 
 export default function HotelCardsDisplay() {
   const [sortBy, setSortBy] = useState<"rating" | "price" | "name">("rating");
@@ -85,7 +86,7 @@ export default function HotelCardsDisplay() {
         </CardContent>
       </Card>
 
-      {/* Liste des hôtels */}
+      {/* Liste des hôtels avec Link */}
       <div className="space-y-6">
         {hotels.length === 0 ? (
           <Card>
@@ -100,7 +101,28 @@ export default function HotelCardsDisplay() {
             </CardContent>
           </Card>
         ) : (
-          hotels.map((hotel) => <HotelCard key={hotel.id} hotel={hotel} />)
+          hotels.map((hotel) => (
+            <Link
+              key={hotel.id}
+              href={`/public/foundeHotels/${hotel.id}`}
+              className="block transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg group"
+              aria-label={`Voir les détails de ${hotel.name}`}
+            >
+              <div className="relative">
+                <HotelCard hotel={hotel} />
+
+                {/* Indicateur visuel de navigation */}
+                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="bg-blue-600 text-white p-2 rounded-full shadow-lg">
+                    <ExternalLink className="w-4 h-4" />
+                  </div>
+                </div>
+
+                {/* Overlay pour feedback visuel */}
+                <div className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-5 transition-opacity duration-200 rounded-lg pointer-events-none" />
+              </div>
+            </Link>
+          ))
         )}
       </div>
     </div>

@@ -6,6 +6,7 @@ import { Menu, X } from "lucide-react";
 import Logo from "./Logo";
 import NavHeader from "./NavHeader";
 import IsConnected from "@/components/layout/header/IsConnected";
+import Setting from "./Setting";
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -27,7 +28,10 @@ export default function Header() {
           <div className="hidden md:flex flex-1 justify-center">
             <NavHeader />
           </div>
-
+          {/* Navigation settting */}
+          <div>
+            <Setting />
+          </div>
           {/* Zone de droite : connexion + burger */}
           <div className="flex items-center gap-4">
             <div className="hidden md:block">

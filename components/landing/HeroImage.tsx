@@ -2,6 +2,7 @@
 
 import React from "react";
 import HeroForm from "./HeroForm";
+import Link from "next/link";
 
 const HERO_IMAGE_URL = "/hero.png";
 const HERO_SLOGAN = "Réservez facilement, vivez pleinement";
@@ -34,12 +35,16 @@ export default function Hero() {
 
           {/* Boutons d'action */}
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center">
-            <button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg px-8 py-4 rounded-full shadow-2xl transform hover:scale-105 transition-all duration-300 ease-out">
-              Commencer maintenant
-            </button>
-            <button className="w-full sm:w-auto bg-white/10 backdrop-blur-sm border-2 border-white/30 text-white hover:bg-white hover:text-gray-900 font-semibold text-lg px-8 py-4 rounded-full shadow-xl transform hover:scale-105 transition-all duration-300 ease-out">
-              Découvrir l'app
-            </button>
+            <Link href="/public/foundeHotels">
+              <button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg px-8 py-4 rounded-full shadow-2xl transform hover:scale-105 transition-all duration-300 ease-out">
+                Commencer maintenant
+              </button>
+            </Link>
+            <Link href="#download-app">
+              <button className="w-full sm:w-auto bg-white/10 backdrop-blur-sm border-2 border-white/30 text-white hover:bg-white hover:text-gray-900 font-semibold text-lg px-8 py-4 rounded-full shadow-xl transform hover:scale-105 transition-all duration-300 ease-out">
+                Découvrir l'app
+              </button>
+            </Link>
           </div>
         </div>
       </div>

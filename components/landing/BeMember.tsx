@@ -2,6 +2,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { Zap, Users, ArrowRight, Star, Gift, Shield } from "lucide-react";
+import Link from "next/link";
 
 export default function BeMember() {
   return (
@@ -128,23 +129,26 @@ export default function BeMember() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <motion.button
-                className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg flex items-center justify-center transition-all duration-300 shadow-md hover:shadow-lg"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Users className="mr-2" size={18} />
-                Devenir Membre
-                <ArrowRight className="ml-2" size={18} />
-              </motion.button>
-
-              <motion.button
-                className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-all duration-300"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                En savoir plus
-              </motion.button>
+              <Link href="/public/auth/register" className="flex-1">
+                <motion.button
+                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg flex items-center justify-center transition-all duration-300 shadow-md hover:shadow-lg"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Users className="mr-2" size={18} />
+                  Devenir Membre
+                  <ArrowRight className="ml-2" size={18} />
+                </motion.button>
+              </Link>
+              <Link href="/public">
+                <motion.button
+                  className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-all duration-300"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  En savoir plus
+                </motion.button>
+              </Link>
             </div>
           </motion.div>
 
