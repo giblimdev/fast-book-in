@@ -31,6 +31,12 @@ export default function DevDashboard() {
             >
               Schéma
             </Link>
+            <Link
+              href="/dev/displayComponent"
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-green-600 transition-colors"
+            >
+              SelectCity
+            </Link>
           </div>
         </section>
 

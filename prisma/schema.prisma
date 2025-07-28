@@ -110,19 +110,19 @@ model Country {
   updatedAt DateTime @updatedAt
 
   cities City[]
-  images GaleryImage[]
+  images GalleryImage[]
 
   @@map("countries")
 }
 
 model City {
-  id        String        @id @default(uuid())
+  id        String         @id @default(uuid())
   name      String
-  order     Int?          @default(100)
+  order     Int?           @default(100)
   countryId String
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  images    GaleryImage[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  images    GalleryImage[]
 
   country           Country             @relation(fields: [countryId], references: [id], onDelete: Cascade)
   neighborhoods     Neighborhood[]
@@ -142,8 +142,8 @@ model Neighborhood {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  city   City          @relation(fields: [cityId], references: [id], onDelete: Cascade)
-  images GaleryImage[]
+  city   City           @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  images GalleryImage[]
 
   @@map("neighborhoods")
 }
@@ -160,8 +160,9 @@ model Landmark {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  city    City      @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  city    City           @relation(fields: [cityId], references: [id], onDelete: Cascade)
   Address Address[]
+  images  GalleryImage[]
 
   @@map("landmarks")
 }
@@ -172,19 +173,18 @@ model Landmark {
 
 // 🏨 Tables de référentiel hôtelier
 model Label {
-  id          String        @id @default(uuid())
-  name        String
-  order       Int?          @default(100)
-  code        String        @unique
-  description String?
-  category    String
-  icon        String?
-  color       String?
-  priority    Int           @default(0)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  images      GaleryImage[]
-
+  id               String             @id @default(uuid())
+  name             String
+  order            Int?               @default(100)
+  code             String             @unique
+  description      String?
+  category         String
+  icon             String?
+  color            String?
+  priority         Int                @default(0)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  images           String?
   HotelDetails     HotelDetails?      @relation(fields: [hotelDetailsId], references: [id])
   hotelDetailsId   String?
   HotelCardToLabel HotelCardToLabel[]
@@ -193,19 +193,19 @@ model Label {
 }
 
 model Destination {
-  id              String        @id @default(uuid())
+  id              String         @id @default(uuid())
   name            String
-  order           Int?          @default(100)
+  order           Int?           @default(100)
   description     String?
   type            String
-  popularityScore Int           @default(0)
+  popularityScore Int            @default(0)
   cityId          String
   latitude        Float?
   longitude       Float?
   radius          Float?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  images          GaleryImage[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  images          GalleryImage[]
 
   HotelCard         HotelCard[]
   City              City[]
@@ -216,7 +216,7 @@ model Destination {
 
 model AccommodationType {
   id          String   @id @default(uuid())
-  name        String
+  name        String // dortoir, chambre simple
   order       Int?     @default(100)
   code        String   @unique
   description String?
@@ -225,6 +225,7 @@ model AccommodationType {
   updatedAt   DateTime @updatedAt
 
   HotelCard HotelCard[]
+  images    String?
 
   @@map("accommodation_types")
 }
@@ -344,28 +345,42 @@ model Address {
   @@map("addresses")
 }
 
-model GaleryImage {
-  id       String @id @default(uuid())
-  entityId String
-  imageUrl String
+model GalleryImage {
+  id String @id @default(uuid())
 
-  imageType      String // city hotel room ....
-  order          Int           @default(20)
-  alt            String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  HotelCard      HotelCard[]
-  City           City[]
-  Country        Country?      @relation(fields: [countryId], references: [id])
-  countryId      String?
-  Neighborhood   Neighborhood? @relation(fields: [neighborhoodId], references: [id])
-  neighborhoodId String?
-  Label          Label?        @relation(fields: [labelId], references: [id])
-  labelId        String?
-  Destination    Destination[]
-  HotelRoom      HotelRoom[]
+  imageCategories String // destinationType  city country neighborhood hotelCard hotelRoom typelandmark
+  order           Int            @default(20)
+  alt             String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  image           Image[]
+  HotelCard       HotelCard?     @relation(fields: [hotelCardId], references: [id])
+  hotelCardId     String?
+  city            City?          @relation(fields: [cityId], references: [id])
+  cityId          String?
+  country         Country?       @relation(fields: [countryId], references: [id])
+  countryId       String?
+  neighborhood    Neighborhood?  @relation(fields: [neighborhoodId], references: [id])
+  neighborhoodId  String?
+  labelId         String?
+  destination     Destination?   @relation(fields: [destinationId], references: [id])
+  destinationId   String?
+  hotelRoomtype   HotelRoomType? @relation(fields: [hotelRoomtypeId], references: [id])
+  hotelRoomtypeId String?
+  landmark        Landmark?      @relation(fields: [landmarkId], references: [id])
+  landmarkId      String?
 
   @@map("hotel_images")
+}
+
+model Image {
+  id          String         @id @default(uuid())
+  slug        String?
+  description String?
+  path        String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  GaleryImage GalleryImage[]
 }
 
 model HotelCard {
@@ -389,7 +404,7 @@ model HotelCard {
   destinationId                  String?
   hotelGroupId                   String?
   parking                        HotelParking?                    @relation(fields: [hotelParkingId], references: [id])
-  images                         GaleryImage[]
+  images                         GalleryImage[]
   latitude                       Float? // GPS latitude
   longitude                      Float? // GPS longitude
   HotelAmenity                   HotelAmenity[]
@@ -406,7 +421,7 @@ model HotelCard {
 
   HotelPolicy HotelPolicy[]
 
-  HotelRoom HotelRoom[]
+  HotelRoomType HotelRoomType[]
 
   HotelReview HotelReview[]
 
@@ -441,33 +456,45 @@ model HotelDetails {
   HotelCard                 HotelCard?                  @relation(fields: [HotelCardid], references: [id])
   HotelCardid               String?
   HotelDetailsToRoomAmenity HotelDetailsToRoomAmenity[]
+  room                      HotelRoom[]
 
   @@map("hotel_details")
 }
 
-model HotelRoom {
-  id            String                 @id @default(uuid())
+model HotelRoomType {
+  id            String         @id @default(uuid())
   hotelCardId   String
   name          String
   description   String?
-  images        GaleryImage[]
+  images        GalleryImage[]
   maxGuests     Int
   bedCount      Int
   bedType       String
   roomSize      Float? // en m²
   pricePerNight Float
-  currency      String                 @default("EUR")
-  isAvailable   Boolean                @default(true)
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-  reservations  Reservation[]
-  availability  CalendarAvailability[] // Nouveau modèle pour gérer les disponibilités jourspar jours
+  currency      String         @default("EUR")
+  isAvailable   Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   hotelCard          HotelCard            @relation(fields: [hotelCardId], references: [id])
-  RoomUnavailability RoomUnavailability[]
   CancellationPolicy CancellationPolicy[]
+  RoomUnavailability RoomUnavailability[]
 
   @@map("hotel_rooms")
+}
+
+model HotelRoom {
+  id String @id @default(uuid())
+
+  slug String?
+
+  reservations Reservation[]
+  availability CalendarAvailability[] // Nouveau modèle pour gérer les disponibilités jourspar jours
+
+  HotelDetails       HotelDetails?        @relation(fields: [hotelDetailsId], references: [id])
+  hotelDetailsId     String?
+  RoomUnavailability RoomUnavailability[]
 }
 
 //////////////////////////
@@ -539,7 +566,7 @@ model CancellationPolicy {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  HotelRoom HotelRoom[]
+  HotelRoomType HotelRoomType[]
 
   Reservation  Reservation[]
   Cancellation Cancellation[]
@@ -590,7 +617,9 @@ model RoomUnavailability {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  hotelRoom HotelRoom @relation(fields: [hotelRoomId], references: [id])
+  hotelRoom       HotelRoom      @relation(fields: [hotelRoomId], references: [id])
+  HotelRoomType   HotelRoomType? @relation(fields: [hotelRoomTypeId], references: [id])
+  hotelRoomTypeId String?
 
   @@index([hotelRoomId, startDate, endDate])
 }

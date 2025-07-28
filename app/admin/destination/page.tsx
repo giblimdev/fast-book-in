@@ -1,4 +1,4 @@
-// @/app/demo/admin/destination/page.tsx
+// @/app/admin/destination/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -656,6 +656,10 @@ export default function DestinationPage() {
           )}
         </CardContent>
       </Card>
+      <div>
+        destination : plage, ville, montagne,... le formulaire ne dois pas
+        demander de ville car plusieur ville aurons ce même tag destination
+      </div>
     </div>
   );
 }

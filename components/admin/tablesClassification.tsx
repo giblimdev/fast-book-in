@@ -193,7 +193,7 @@ const familyClassification = [
         count: 156,
       },
       {
-        name: "HotelImage",
+        name: "GalleryImage",
         description: "Galerie photos des hébergements",
         icon: "📸",
         count: 2340,
@@ -201,7 +201,6 @@ const familyClassification = [
     ],
   },
 
-  // 🆕 NOUVELLE SECTION AJOUTÉE
   {
     family: "Réservation & Contenu",
     description: "Avis clients, chambres, politiques et support",

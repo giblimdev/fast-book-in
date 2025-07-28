@@ -1,4 +1,4 @@
-// @/app/demo/admin/city/page.tsx
+// @/app/admin/city/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";

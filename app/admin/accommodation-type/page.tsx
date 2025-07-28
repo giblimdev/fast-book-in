@@ -1,4 +1,4 @@
-// @/app/demo/admin/accommodation-type/page.tsx
+// @/app/admin/accommodation-type/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";

@@ -1,3 +1,4 @@
+//@/app/admin/hotel-highlight
 "use client";
 
 import React, { useState, useEffect } from "react";
