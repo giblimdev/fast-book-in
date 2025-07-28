@@ -1,8 +1,7 @@
 // components/HotelCardsDisplay.tsx
 "use client";
 
-import React, { useState, useMemo } from "react";
-import Link from "next/link";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   getAllHotels,
   getPartnerHotels,
@@ -14,11 +13,14 @@ import HotelCard from "@/components/HotelCard/HotelCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Star, ExternalLink } from "lucide-react";
+import { Search, Star, ExternalLink } from "lucide-react";
+import { getHotelById } from "@/utils/getHotelById";
+import { useRouter } from "next/navigation";
 
 export default function HotelCardsDisplay() {
   const [sortBy, setSortBy] = useState<"rating" | "price" | "name">("rating");
-  const [showOnlyPartners, setShowOnlyPartners] = useState(false);
+  const [showOnlyPartners, setShowOnlyPartners] = useState<boolean>(false);
+  const router = useRouter();
 
   const hotels = useMemo(() => {
     let baseHotels: Hotel[] = showOnlyPartners
@@ -36,6 +38,18 @@ export default function HotelCardsDisplay() {
         return baseHotels;
     }
   }, [sortBy, showOnlyPartners]);
+
+  const handleHotelClick = useCallback(
+    async (hotelId: string) => {
+      try {
+        await getHotelById(hotelId);
+        router.push(`/public/foundeHotels/${hotelId}`);
+      } catch (error) {
+        console.error("Erreur lors de la sélection de l'hôtel:", error);
+      }
+    },
+    [router]
+  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -86,7 +100,7 @@ export default function HotelCardsDisplay() {
         </CardContent>
       </Card>
 
-      {/* Liste des hôtels avec Link */}
+      {/* Liste des hôtels avec click handler */}
       <div className="space-y-6">
         {hotels.length === 0 ? (
           <Card>
@@ -102,10 +116,18 @@ export default function HotelCardsDisplay() {
           </Card>
         ) : (
           hotels.map((hotel) => (
-            <Link
+            <div
               key={hotel.id}
-              href={`/public/foundeHotels/${hotel.id}`}
-              className="block transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg group"
+              className="block transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg group cursor-pointer"
+              onClick={() => handleHotelClick(hotel.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleHotelClick(hotel.id);
+                }
+              }}
+              role="button"
+              tabIndex={0}
               aria-label={`Voir les détails de ${hotel.name}`}
             >
               <div className="relative">
@@ -121,7 +143,7 @@ export default function HotelCardsDisplay() {
                 {/* Overlay pour feedback visuel */}
                 <div className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-5 transition-opacity duration-200 rounded-lg pointer-events-none" />
               </div>
-            </Link>
+            </div>
           ))
         )}
       </div>

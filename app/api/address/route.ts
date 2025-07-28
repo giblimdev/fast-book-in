@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
                 country: true,
               },
             },
-            neighborhood: true,
             hotelDetails: {
               include: {
                 HotelCard: {
@@ -53,7 +52,6 @@ export async function GET(request: NextRequest) {
                 country: true,
               },
             },
-            neighborhood: true,
           },
     });
 
@@ -145,7 +143,6 @@ export async function POST(request: NextRequest) {
             country: true,
           },
         },
-        neighborhood: true,
       },
     });
 

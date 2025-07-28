@@ -1,65 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// ✅ Type corrigé pour Next.js 15
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/hotel-highlight/[id] - Récupérer un highlight d'hôtel par ID
+// GET /api/hotel-highlight/[id] - Récupérer un highlight par ID
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    // ✅ Await des paramètres (obligatoire en Next.js 15)
     const { id } = await context.params;
-
-    // Paramètres de query optionnels
     const { searchParams } = new URL(request.url);
-    const includeHotels = searchParams.get("includeHotels") === "true";
+    const includeRelations = searchParams.get("include") === "true";
 
     const hotelHighlight = await prisma.hotelHighlight.findUnique({
       where: { id },
-      include: includeHotels
+      include: includeRelations
         ? {
             HotelCardToHotelHighlight: {
               include: {
                 hotelCard: {
-                  include: {
-                    accommodationType: true,
-                    destination: {
-                      include: {
-                        City: {
-                          include: {
-                            country: true,
-                          },
-                        },
-                      },
-                    },
-                    hotelGroup: true,
-                    details: {
-                      include: {
-                        address: {
-                          include: {
-                            city: {
-                              include: {
-                                country: true,
-                              },
-                            },
-                            neighborhood: true,
-                          },
-                        },
-                      },
-                    },
+                  select: {
+                    id: true,
+                    name: true,
+                    starRating: true,
+                    overallRating: true,
                   },
                 },
               },
               orderBy: { order: "asc" },
             },
+            _count: {
+              select: {
+                HotelCardToHotelHighlight: true,
+              },
+            },
           }
         : {
-            HotelCardToHotelHighlight: {
+            _count: {
               select: {
-                hotelCardId: true,
-                order: true,
+                HotelCardToHotelHighlight: true,
               },
             },
           },
@@ -82,37 +61,78 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 }
 
-// PUT /api/hotel-highlight/[id] - Mettre à jour un highlight d'hôtel
+// PUT /api/hotel-highlight/[id] - Mettre à jour un highlight
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    // ✅ Await des paramètres
     const { id } = await context.params;
     const body = await request.json();
     const {
       title,
-      hotelId,
-      category,
       description,
+      category,
       icon,
       priority,
       order,
       isPromoted,
+      hotelId,
     } = body;
 
-    // Vérifier si le highlight d'hôtel existe
-    const existingHotelHighlight = await prisma.hotelHighlight.findUnique({
+    // Vérifier si le highlight existe
+    const existingHighlight = await prisma.hotelHighlight.findUnique({
       where: { id },
     });
 
-    if (!existingHotelHighlight) {
+    if (!existingHighlight) {
       return NextResponse.json(
         { error: "Hotel highlight not found" },
         { status: 404 }
       );
     }
 
-    // Validation de la catégorie si fournie
-    if (category) {
+    // Validation des données
+    if (title !== undefined) {
+      if (!title || typeof title !== "string" || title.trim().length === 0) {
+        return NextResponse.json(
+          { error: "Title must be a non-empty string" },
+          { status: 400 }
+        );
+      }
+
+      if (title.trim().length > 255) {
+        return NextResponse.json(
+          { error: "Title must be less than 255 characters" },
+          { status: 400 }
+        );
+      }
+
+      // Vérifier l'unicité du titre (exclure le highlight actuel)
+      const existingTitle = await prisma.hotelHighlight.findFirst({
+        where: {
+          title: {
+            equals: title.trim(),
+            mode: "insensitive",
+          },
+          hotelId: hotelId || existingHighlight.hotelId,
+          NOT: { id },
+        },
+      });
+
+      if (existingTitle) {
+        return NextResponse.json(
+          {
+            error:
+              "Hotel highlight with this title already exists for this hotel",
+            existingHighlight: {
+              id: existingTitle.id,
+              title: existingTitle.title,
+            },
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    if (category !== undefined) {
       const validCategories = [
         "Location",
         "Amenity",
@@ -121,95 +141,110 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         "Offer",
         "Food",
       ];
+
       if (!validCategories.includes(category)) {
         return NextResponse.json(
-          { error: `Category must be one of: ${validCategories.join(", ")}` },
+          {
+            error: `Category must be one of: ${validCategories.join(", ")}`,
+            received: category,
+            validOptions: validCategories,
+          },
           { status: 400 }
         );
       }
     }
 
-    // Validation de la priorité si fournie
-    if (priority !== undefined && (priority < 0 || priority > 10)) {
+    if (
+      description !== undefined &&
+      description !== null &&
+      description.length > 1000
+    ) {
       return NextResponse.json(
-        { error: "Priority must be between 0 and 10" },
+        { error: "Description must be less than 1000 characters" },
         { status: 400 }
       );
     }
 
-    const updatedHotelHighlight = await prisma.hotelHighlight.update({
+    if (
+      priority !== undefined &&
+      (typeof priority !== "number" || priority < 0 || priority > 100)
+    ) {
+      return NextResponse.json(
+        { error: "Priority must be a number between 0 and 100" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      order !== undefined &&
+      (typeof order !== "number" || order < 0 || order > 9999)
+    ) {
+      return NextResponse.json(
+        { error: "Order must be a number between 0 and 9999" },
+        { status: 400 }
+      );
+    }
+
+    const updatedHighlight = await prisma.hotelHighlight.update({
       where: { id },
       data: {
-        ...(title && { title }),
-        ...(hotelId && { hotelId }),
-        ...(category && { category }),
-        ...(description !== undefined && { description }),
-        ...(icon !== undefined && { icon }),
+        ...(title !== undefined && { title: title.trim() }),
+        ...(description !== undefined && {
+          description: description?.trim() || null,
+        }),
+        ...(category !== undefined && { category: category.trim() }),
+        ...(icon !== undefined && { icon: icon?.trim() || null }),
         ...(priority !== undefined && { priority }),
         ...(order !== undefined && { order }),
         ...(isPromoted !== undefined && { isPromoted }),
+        ...(hotelId !== undefined && { hotelId }),
+      },
+      include: {
+        _count: {
+          select: {
+            HotelCardToHotelHighlight: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json(updatedHotelHighlight);
+    return NextResponse.json(updatedHighlight);
   } catch (error) {
     console.error("Error updating hotel highlight:", error);
-
-    if (error && typeof error === "object" && "code" in error) {
-      if (error.code === "P2002") {
-        return NextResponse.json(
-          {
-            error:
-              "Hotel highlight with this title already exists for this hotel",
-          },
-          { status: 409 }
-        );
-      }
-      if (error.code === "P2003") {
-        return NextResponse.json(
-          { error: "Invalid hotel reference" },
-          { status: 400 }
-        );
-      }
-    }
-
-    return NextResponse.json(
-      { error: "Failed to update hotel highlight" },
-      { status: 500 }
-    );
+    return handlePrismaError(error);
   }
 }
 
-// DELETE /api/hotel-highlight/[id] - Supprimer un highlight d'hôtel
+// DELETE /api/hotel-highlight/[id] - Supprimer un highlight
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    // ✅ Await des paramètres
     const { id } = await context.params;
 
-    // Vérifier si le highlight d'hôtel existe et récupérer les relations
-    const existingHotelHighlight = await prisma.hotelHighlight.findUnique({
+    // Vérifier si le highlight existe et récupérer les relations
+    const existingHighlight = await prisma.hotelHighlight.findUnique({
       where: { id },
       include: {
-        HotelCardToHotelHighlight: true,
+        _count: {
+          select: {
+            HotelCardToHotelHighlight: true,
+          },
+        },
       },
     });
 
-    if (!existingHotelHighlight) {
+    if (!existingHighlight) {
       return NextResponse.json(
         { error: "Hotel highlight not found" },
         { status: 404 }
       );
     }
 
-    // Vérifier s'il y a des cartes d'hôtel associées
-    if (existingHotelHighlight.HotelCardToHotelHighlight.length > 0) {
+    // Vérifier s'il y a des relations
+    if (existingHighlight._count.HotelCardToHotelHighlight > 0) {
       return NextResponse.json(
         {
-          error: "Cannot delete hotel highlight with associated hotel cards",
-          details: {
-            hotelCardCount:
-              existingHotelHighlight.HotelCardToHotelHighlight.length,
-          },
+          error: "Cannot delete hotel highlight that is being used",
+          usageCount: existingHighlight._count.HotelCardToHotelHighlight,
         },
         { status: 409 }
       );
@@ -219,15 +254,62 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       where: { id },
     });
 
-    return NextResponse.json(
-      { message: "Hotel highlight deleted successfully" },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      message: "Hotel highlight deleted successfully",
+      deletedHighlight: {
+        id: existingHighlight.id,
+        title: existingHighlight.title,
+      },
+    });
   } catch (error) {
     console.error("Error deleting hotel highlight:", error);
-    return NextResponse.json(
-      { error: "Failed to delete hotel highlight" },
-      { status: 500 }
-    );
+    return handlePrismaError(error);
   }
+}
+
+// Gestion des erreurs Prisma
+function handlePrismaError(error: any) {
+  if (error && typeof error === "object" && "code" in error) {
+    switch (error.code) {
+      case "P2002":
+        const target = error.meta?.target;
+        return NextResponse.json(
+          {
+            error: `Hotel highlight with this ${
+              target?.[0] || "field"
+            } already exists`,
+            prismaError: error.code,
+            details: error.meta,
+          },
+          { status: 409 }
+        );
+      case "P2025":
+        return NextResponse.json(
+          {
+            error: "Hotel highlight not found",
+            prismaError: error.code,
+          },
+          { status: 404 }
+        );
+      default:
+        console.error("Unhandled Prisma error:", error);
+        return NextResponse.json(
+          {
+            error: "Database error occurred",
+            prismaError: error.code,
+            message: error.message,
+          },
+          { status: 500 }
+        );
+    }
+  }
+
+  return NextResponse.json(
+    {
+      error: "Failed to process request",
+      details: error instanceof Error ? error.message : "Unknown error",
+      timestamp: new Date().toISOString(),
+    },
+    { status: 500 }
+  );
 }

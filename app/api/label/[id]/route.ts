@@ -1,18 +1,15 @@
+// @/app/api/label/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// ✅ Type corrigé pour Next.js 15
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/label/[id] - Récupérer un label par ID
+// GET /api/label/[id]
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    // ✅ Await des paramètres (obligatoire en Next.js 15)
     const { id } = await context.params;
-
-    // Paramètres de query optionnels
     const { searchParams } = new URL(request.url);
     const includeHotels = searchParams.get("includeHotels") === "true";
 
@@ -36,18 +33,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
           ? {
               include: {
                 hotelCard: {
-                  include: {
-                    accommodationType: true,
-                    destination: {
-                      include: {
-                        City: {
-                          include: {
-                            country: true,
-                          },
-                        },
-                      },
-                    },
-                    hotelGroup: true,
+                  select: {
+                    id: true,
+                    name: true,
+                    starRating: true,
+                    overallRating: true,
+                    basePricePerNight: true,
+                    currency: true,
                   },
                 },
               },
@@ -58,6 +50,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 hotelCardId: true,
               },
             },
+        _count: {
+          select: {
+            HotelCardToLabel: true,
+          },
+        },
       },
     });
 
@@ -75,10 +72,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 }
 
-// PUT /api/label/[id] - Mettre à jour un label
+// PUT /api/label/[id]
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    // ✅ Await des paramètres
     const { id } = await context.params;
     const body = await request.json();
     const {
@@ -93,7 +89,6 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       hotelDetailsId,
     } = body;
 
-    // Vérifier si le label existe
     const existingLabel = await prisma.label.findUnique({
       where: { id },
     });
@@ -102,31 +97,72 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Label not found" }, { status: 404 });
     }
 
-    // Validation du code si fourni
-    if (code && !/^[A-Z_]{2,20}$/.test(code)) {
-      return NextResponse.json(
-        { error: "Code must be 2-20 uppercase letters or underscores" },
-        { status: 400 }
-      );
+    // Validations similaires au POST mais optionnelles
+    if (name !== undefined) {
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
+        return NextResponse.json(
+          { error: "Name must be a non-empty string" },
+          { status: 400 }
+        );
+      }
+
+      const nameExists = await prisma.label.findFirst({
+        where: {
+          name: {
+            equals: name.trim(),
+            mode: "insensitive",
+          },
+          NOT: { id },
+        },
+      });
+
+      if (nameExists) {
+        return NextResponse.json(
+          { error: "Label with this name already exists" },
+          { status: 409 }
+        );
+      }
     }
 
-    // Validation de la couleur si fournie
-    if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
-      return NextResponse.json(
-        { error: "Color must be a valid hex color (e.g., #FF0000)" },
-        { status: 400 }
-      );
+    if (code !== undefined) {
+      if (!code || typeof code !== "string" || code.trim().length === 0) {
+        return NextResponse.json(
+          { error: "Code must be a non-empty string" },
+          { status: 400 }
+        );
+      }
+
+      const cleanCode = code.trim().toUpperCase();
+      if (!/^[A-Z0-9_]{2,50}$/.test(cleanCode)) {
+        return NextResponse.json(
+          {
+            error:
+              "Code must be 2-50 characters (uppercase letters, numbers, underscores only)",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (cleanCode !== existingLabel.code) {
+        const codeExists = await prisma.label.findFirst({
+          where: {
+            code: {
+              equals: cleanCode,
+              mode: "insensitive",
+            },
+            NOT: { id },
+          },
+        });
+
+        if (codeExists) {
+          return NextResponse.json(
+            { error: "Label with this code already exists" },
+            { status: 409 }
+          );
+        }
+      }
     }
 
-    // Validation de la priorité si fournie
-    if (priority !== undefined && (priority < 0 || priority > 10)) {
-      return NextResponse.json(
-        { error: "Priority must be between 0 and 10" },
-        { status: 400 }
-      );
-    }
-
-    // Si hotelDetailsId est fourni, vérifier qu'il existe
     if (hotelDetailsId && hotelDetailsId !== existingLabel.hotelDetailsId) {
       const hotelDetails = await prisma.hotelDetails.findUnique({
         where: { id: hotelDetailsId },
@@ -143,28 +179,26 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const updatedLabel = await prisma.label.update({
       where: { id },
       data: {
-        ...(name && { name }),
-        ...(code && { code }),
-        ...(category && { category }),
-        ...(description !== undefined && { description }),
-        ...(icon !== undefined && { icon }),
-        ...(color !== undefined && { color }),
-        ...(priority !== undefined && { priority }),
-        ...(order !== undefined && { order }),
-        ...(hotelDetailsId !== undefined && { hotelDetailsId }),
+        ...(name !== undefined && { name: name.trim() }),
+        ...(code !== undefined && { code: code.trim().toUpperCase() }),
+        ...(category !== undefined && { category: category.trim() }),
+        ...(description !== undefined && {
+          description: description?.trim() || null,
+        }),
+        ...(icon !== undefined && { icon: icon?.trim() || null }),
+        ...(color !== undefined && { color: color?.trim() || null }),
+        ...(priority !== undefined && {
+          priority: priority ? parseInt(priority) : 0,
+        }),
+        ...(order !== undefined && { order: order ? parseInt(order) : 100 }),
+        ...(hotelDetailsId !== undefined && {
+          hotelDetailsId: hotelDetailsId?.trim() || null,
+        }),
       },
       include: {
-        HotelDetails: {
-          include: {
-            address: {
-              include: {
-                city: {
-                  include: {
-                    country: true,
-                  },
-                },
-              },
-            },
+        _count: {
+          select: {
+            HotelCardToLabel: true,
           },
         },
       },
@@ -173,22 +207,6 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     return NextResponse.json(updatedLabel);
   } catch (error) {
     console.error("Error updating label:", error);
-
-    if (error && typeof error === "object" && "code" in error) {
-      if (error.code === "P2002") {
-        return NextResponse.json(
-          { error: "Label code already exists" },
-          { status: 409 }
-        );
-      }
-      if (error.code === "P2003") {
-        return NextResponse.json(
-          { error: "Invalid hotel details reference" },
-          { status: 400 }
-        );
-      }
-    }
-
     return NextResponse.json(
       { error: "Failed to update label" },
       { status: 500 }
@@ -196,17 +214,19 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 }
 
-// DELETE /api/label/[id] - Supprimer un label
+// DELETE /api/label/[id]
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    // ✅ Await des paramètres
     const { id } = await context.params;
 
-    // Vérifier si le label existe et récupérer les relations
     const existingLabel = await prisma.label.findUnique({
       where: { id },
       include: {
-        HotelCardToLabel: true,
+        _count: {
+          select: {
+            HotelCardToLabel: true,
+          },
+        },
       },
     });
 
@@ -214,13 +234,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Label not found" }, { status: 404 });
     }
 
-    // Vérifier s'il y a des hôtels associés
-    if (existingLabel.HotelCardToLabel.length > 0) {
+    if (existingLabel._count.HotelCardToLabel > 0) {
       return NextResponse.json(
         {
           error: "Cannot delete label with associated hotel cards",
           details: {
-            hotelCardCount: existingLabel.HotelCardToLabel.length,
+            hotelCardCount: existingLabel._count.HotelCardToLabel,
           },
         },
         { status: 409 }

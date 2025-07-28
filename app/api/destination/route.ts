@@ -1,63 +1,62 @@
+// @/app/api/destination/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// GET /api/destination - Récupérer toutes les destinations
 export async function GET(request: NextRequest) {
   try {
-    // Paramètres de query optionnels
     const { searchParams } = new URL(request.url);
-    const cityId = searchParams.get("cityId");
     const type = searchParams.get("type");
-    const minPopularity = searchParams.get("minPopularity");
+    const cityId = searchParams.get("cityId");
     const includeRelations = searchParams.get("include") === "true";
 
     const whereClause: any = {};
-    if (cityId) whereClause.cityId = cityId;
     if (type) whereClause.type = type;
-    if (minPopularity) {
-      whereClause.popularityScore = {
-        gte: parseInt(minPopularity),
-      };
-    }
+    if (cityId) whereClause.cityId = cityId;
+
+    console.log("Fetching destinations with where clause:", whereClause);
 
     const destinations = await prisma.destination.findMany({
       where: whereClause,
-      orderBy: [{ popularityScore: "desc" }, { order: "asc" }],
-      include: includeRelations
-        ? {
-            HotelCard: {
+      orderBy: [{ order: "asc" }, { popularityScore: "desc" }, { name: "asc" }],
+      include: {
+        // ✅ Selon votre schéma : relation many-to-many avec City
+        City: {
+          include: {
+            country: {
               select: {
                 id: true,
                 name: true,
-                starRating: true,
-                overallRating: true,
-                basePricePerNight: true,
-              },
-            },
-            City: {
-              include: {
-                country: true,
-              },
-            },
-            DestinationToCity: {
-              include: {
-                city: {
-                  include: {
-                    country: true,
-                  },
-                },
-              },
-              orderBy: { order: "asc" },
-            },
-          }
-        : {
-            City: {
-              include: {
-                country: true,
+                code: true,
               },
             },
           },
+        },
+        // ✅ Table de jointure
+        DestinationToCity: {
+          include: {
+            city: {
+              include: {
+                country: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            HotelCard: true,
+          },
+        },
+      },
     });
+
+    console.log("Destinations found:", destinations.length);
+    console.log("First destination:", destinations[0]);
 
     return NextResponse.json(destinations);
   } catch (error) {
@@ -69,84 +68,63 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/destination - Créer une nouvelle destination
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
       name,
-      type,
-      cityId,
-      description,
-      popularityScore,
       order,
+      description,
+      type,
+      popularityScore,
+      cityId,
       latitude,
       longitude,
       radius,
     } = body;
 
-    // Validation basique
-    if (!name || !type || !cityId) {
+    console.log("Creating destination with data:", body);
+
+    // Validation
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json(
-        { error: "Name, type and cityId are required" },
+        { error: "Name is required and must be a non-empty string" },
         { status: 400 }
       );
     }
 
-    // Validation des coordonnées GPS si fournies
-    if (latitude && (latitude < -90 || latitude > 90)) {
-      return NextResponse.json(
-        { error: "Latitude must be between -90 and 90" },
-        { status: 400 }
-      );
+    if (!type || typeof type !== "string") {
+      return NextResponse.json({ error: "Type is required" }, { status: 400 });
     }
 
-    if (longitude && (longitude < -180 || longitude > 180)) {
-      return NextResponse.json(
-        { error: "Longitude must be between -180 and 180" },
-        { status: 400 }
-      );
-    }
-
-    // Validation du score de popularité
-    if (popularityScore && (popularityScore < 0 || popularityScore > 100)) {
+    if (
+      popularityScore !== undefined &&
+      (popularityScore < 0 || popularityScore > 100)
+    ) {
       return NextResponse.json(
         { error: "Popularity score must be between 0 and 100" },
         { status: 400 }
       );
     }
 
-    // Validation du rayon
-    if (radius && radius < 0) {
-      return NextResponse.json(
-        { error: "Radius must be positive" },
-        { status: 400 }
-      );
-    }
-
-    // Vérifier que la ville existe
-    const city = await prisma.city.findUnique({
-      where: { id: cityId },
-      include: {
-        country: true,
-      },
-    });
-
-    if (!city) {
-      return NextResponse.json({ error: "City not found" }, { status: 404 });
-    }
-
+    // ✅ Création de la destination selon votre schéma
     const destination = await prisma.destination.create({
       data: {
-        name,
-        type,
-        cityId,
-        description,
-        popularityScore: popularityScore || 0,
+        name: name.trim(),
         order: order || 100,
-        latitude,
-        longitude,
-        radius,
+        description: description?.trim() || null,
+        type: type.trim(),
+        popularityScore: popularityScore || 0,
+        cityId: cityId || "", // Garde le cityId même si pas utilisé directement
+        latitude: latitude || null,
+        longitude: longitude || null,
+        radius: radius || null,
+        // ✅ Connecter à la ville via la relation many-to-many si cityId fourni
+        ...(cityId && {
+          City: {
+            connect: { id: cityId },
+          },
+        }),
       },
       include: {
         City: {
@@ -154,29 +132,28 @@ export async function POST(request: NextRequest) {
             country: true,
           },
         },
+        DestinationToCity: {
+          include: {
+            city: {
+              include: {
+                country: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            HotelCard: true,
+          },
+        },
       },
     });
+
+    console.log("Destination created:", destination);
 
     return NextResponse.json(destination, { status: 201 });
   } catch (error) {
     console.error("Error creating destination:", error);
-
-    // Gestion des erreurs Prisma
-    if (error && typeof error === "object" && "code" in error) {
-      if (error.code === "P2002") {
-        return NextResponse.json(
-          { error: "Destination with this name already exists in this city" },
-          { status: 409 }
-        );
-      }
-      if (error.code === "P2003") {
-        return NextResponse.json(
-          { error: "Invalid city reference" },
-          { status: 400 }
-        );
-      }
-    }
-
     return NextResponse.json(
       { error: "Failed to create destination" },
       { status: 500 }

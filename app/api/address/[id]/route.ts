@@ -1,3 +1,4 @@
+// @/app/api/address/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 country: true,
               },
             },
-            neighborhood: true,
+            // ✅ neighborhood supprimé car plus dans le schéma
             hotelDetails: {
               include: {
                 HotelCard: {
@@ -47,6 +48,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 role: true,
               },
             },
+            landmarks: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                description: true,
+              },
+            },
           }
         : {
             city: {
@@ -54,7 +63,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 country: true,
               },
             },
-            neighborhood: true,
+            // ✅ neighborhood supprimé
           },
     });
 
@@ -79,12 +88,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const body = await request.json();
     const {
+      name, // ✅ Champ name ajouté
       streetNumber,
+      streetType, // ✅ Nouveau champ streetType
       streetName,
       addressLine2,
       postalCode,
       cityId,
-      neighborhoodId,
+      // ✅ neighborhoodId supprimé car plus dans le schéma
     } = body;
 
     // Vérifier si l'adresse existe
@@ -96,10 +107,46 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Address not found" }, { status: 404 });
     }
 
+    // Validation des champs requis
+    if (streetName && streetName.trim().length === 0) {
+      return NextResponse.json(
+        { error: "Street name cannot be empty" },
+        { status: 400 }
+      );
+    }
+
     // Validation du code postal si fourni
     if (postalCode && !/^\d{5}$/.test(postalCode)) {
       return NextResponse.json(
         { error: "Postal code must be 5 digits" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Validation du type de voie si fourni
+    const validStreetTypes = [
+      "rue",
+      "boulevard",
+      "avenue",
+      "allée",
+      "place",
+      "quai",
+      "route",
+      "chemin",
+      "impasse",
+      "lieu-dit",
+    ];
+    if (
+      streetType &&
+      streetType.trim() &&
+      !validStreetTypes.includes(streetType.trim().toLowerCase())
+    ) {
+      return NextResponse.json(
+        {
+          error: `Invalid street type. Valid types: ${validStreetTypes.join(
+            ", "
+          )}`,
+        },
         { status: 400 }
       );
     }
@@ -115,38 +162,24 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       }
     }
 
-    // Vérifier le quartier si fourni
-    if (neighborhoodId) {
-      const neighborhood = await prisma.neighborhood.findUnique({
-        where: { id: neighborhoodId },
-      });
-
-      if (!neighborhood) {
-        return NextResponse.json(
-          { error: "Neighborhood not found" },
-          { status: 404 }
-        );
-      }
-
-      // Vérifier que le quartier appartient à la ville (existante ou nouvelle)
-      const finalCityId = cityId || existingAddress.cityId;
-      if (neighborhood.cityId !== finalCityId) {
-        return NextResponse.json(
-          { error: "Neighborhood does not belong to the specified city" },
-          { status: 400 }
-        );
-      }
-    }
+    // ✅ Validation du quartier supprimée car plus dans le schéma
 
     const updatedAddress = await prisma.address.update({
       where: { id },
       data: {
-        ...(streetNumber !== undefined && { streetNumber }),
-        ...(streetName && { streetName }),
-        ...(addressLine2 !== undefined && { addressLine2 }),
-        ...(postalCode && { postalCode }),
+        ...(name !== undefined && { name: name?.trim() || null }),
+        ...(streetNumber !== undefined && {
+          streetNumber: streetNumber?.trim() || null,
+        }),
+        ...(streetType !== undefined && {
+          streetType: streetType?.trim() || null,
+        }),
+        ...(streetName && { streetName: streetName.trim() }),
+        ...(addressLine2 !== undefined && {
+          addressLine2: addressLine2?.trim() || null,
+        }),
+        ...(postalCode && { postalCode: postalCode.trim() }),
         ...(cityId && { cityId }),
-        ...(neighborhoodId !== undefined && { neighborhoodId }),
       },
       include: {
         city: {
@@ -154,7 +187,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
             country: true,
           },
         },
-        neighborhood: true,
+        // ✅ neighborhood supprimé
+        landmarks: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
       },
     });
 
@@ -165,7 +205,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     if (error && typeof error === "object" && "code" in error) {
       if (error.code === "P2003") {
         return NextResponse.json(
-          { error: "Invalid city or neighborhood reference" },
+          { error: "Invalid city reference" }, // ✅ neighborhood supprimé du message
           { status: 400 }
         );
       }
@@ -190,6 +230,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       include: {
         hotelDetails: true,
         user: true,
+        landmarks: true, // ✅ Relation landmarks ajoutée
       },
     });
 
@@ -197,10 +238,11 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Address not found" }, { status: 404 });
     }
 
-    // Vérifier s'il y a des entités associées
+    // ✅ Vérifier s'il y a des entités associées (avec landmarks)
     const hasRelatedData =
       existingAddress.hotelDetails.length > 0 ||
-      existingAddress.user.length > 0;
+      existingAddress.user.length > 0 ||
+      existingAddress.landmarks.length > 0;
 
     if (hasRelatedData) {
       return NextResponse.json(
@@ -209,6 +251,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
           details: {
             hotelDetails: existingAddress.hotelDetails.length,
             users: existingAddress.user.length,
+            landmarks: existingAddress.landmarks.length, // ✅ Landmarks ajoutés
           },
         },
         { status: 409 }

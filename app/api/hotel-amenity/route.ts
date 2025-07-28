@@ -1,3 +1,4 @@
+// @/app/api/hotel-amenity/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -13,11 +14,10 @@ export async function GET(request: NextRequest) {
 
     const hotelAmenities = await prisma.hotelAmenity.findMany({
       where: whereClause,
-      orderBy: {
-        order: "asc",
-      },
+      orderBy: [{ order: "asc" }, { name: "asc" }],
       include: includeRelations
         ? {
+            // ✅ Relation directe avec HotelCard selon votre schéma
             HotelCard: {
               select: {
                 id: true,
@@ -27,19 +27,21 @@ export async function GET(request: NextRequest) {
                 basePricePerNight: true,
                 currency: true,
                 destination: {
-                  include: {
-                    City: {
-                      include: {
-                        country: true,
-                      },
-                    },
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
                   },
                 },
               },
               orderBy: [{ overallRating: "desc" }, { name: "asc" }],
             },
+            // ✅ Table de jointure selon votre schéma
             HotelCardToHotelAmenity: {
-              include: {
+              select: {
+                hotelCardId: true,
+                order: true,
+                createdAt: true,
                 hotelCard: {
                   select: {
                     id: true,
@@ -51,8 +53,22 @@ export async function GET(request: NextRequest) {
               },
               orderBy: { order: "asc" },
             },
+            // ✅ Compteur d'utilisation
+            _count: {
+              select: {
+                HotelCard: true,
+                HotelCardToHotelAmenity: true,
+              },
+            },
           }
-        : undefined,
+        : {
+            _count: {
+              select: {
+                HotelCard: true,
+                HotelCardToHotelAmenity: true,
+              },
+            },
+          },
     });
 
     return NextResponse.json(hotelAmenities);
@@ -71,12 +87,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, category, icon, description, order } = body;
 
-    // Validation basique
-    if (!name) {
-      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    // ✅ Validation complète
+    if (!name || typeof name !== "string" || name.trim().length === 0) {
+      return NextResponse.json(
+        { error: "Name is required and must be a non-empty string" },
+        { status: 400 }
+      );
     }
 
-    // Validation de la catégorie si fournie
+    // ✅ Validation de la catégorie selon votre schéma (commentaire dans le schéma)
     if (category) {
       const validCategories = [
         "Location",
@@ -85,22 +104,82 @@ export async function POST(request: NextRequest) {
         "View",
         "Offer",
         "Food",
+        "Wellness", // ✅ Ajouté selon les catégories courantes
+        "Business", // ✅ Ajouté selon les catégories courantes
+        "Entertainment", // ✅ Ajouté selon les catégories courantes
+        "Transport", // ✅ Ajouté selon les catégories courantes
       ];
+
       if (!validCategories.includes(category)) {
         return NextResponse.json(
-          { error: `Category must be one of: ${validCategories.join(", ")}` },
+          {
+            error: `Category must be one of: ${validCategories.join(", ")}`,
+            received: category,
+          },
           { status: 400 }
         );
       }
     }
 
+    // ✅ Validation de l'ordre
+    if (order !== undefined && order !== null) {
+      const orderNum = parseInt(order);
+      if (isNaN(orderNum) || orderNum < 0 || orderNum > 9999) {
+        return NextResponse.json(
+          { error: "Order must be a number between 0 and 9999" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // ✅ Validation de l'icône (optionnelle mais si fournie, doit être valide)
+    if (icon && typeof icon !== "string") {
+      return NextResponse.json(
+        { error: "Icon must be a string" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Validation de la description
+    if (description && typeof description !== "string") {
+      return NextResponse.json(
+        { error: "Description must be a string" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Vérifier si un équipement avec le même nom existe déjà
+    const existingAmenity = await prisma.hotelAmenity.findFirst({
+      where: {
+        name: {
+          equals: name.trim(),
+          mode: "insensitive", // Insensible à la casse
+        },
+      },
+    });
+
+    if (existingAmenity) {
+      return NextResponse.json(
+        { error: "Hotel amenity with this name already exists" },
+        { status: 409 }
+      );
+    }
+
     const hotelAmenity = await prisma.hotelAmenity.create({
       data: {
-        name,
-        category,
-        icon,
-        description,
-        order: order || 100,
+        name: name.trim(),
+        category: category?.trim() || null,
+        icon: icon?.trim() || null,
+        description: description?.trim() || null,
+        order: order ? parseInt(order) : 100,
+      },
+      include: {
+        _count: {
+          select: {
+            HotelCard: true,
+            HotelCardToHotelAmenity: true,
+          },
+        },
       },
     });
 
@@ -108,13 +187,24 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error creating hotel amenity:", error);
 
-    // Gestion des erreurs Prisma
+    // ✅ Gestion d'erreurs Prisma améliorée
     if (error && typeof error === "object" && "code" in error) {
-      if (error.code === "P2002") {
-        return NextResponse.json(
-          { error: "Hotel amenity with this name already exists" },
-          { status: 409 }
-        );
+      switch (error.code) {
+        case "P2002":
+          return NextResponse.json(
+            { error: "Hotel amenity with this name already exists" },
+            { status: 409 }
+          );
+        case "P2003":
+          return NextResponse.json(
+            { error: "Invalid reference in the data provided" },
+            { status: 400 }
+          );
+        case "P2025":
+          return NextResponse.json(
+            { error: "Related record not found" },
+            { status: 404 }
+          );
       }
     }
 

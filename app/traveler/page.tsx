@@ -160,7 +160,7 @@ export default function TravelerProfilePage() {
                     className="flex flex-col items-center gap-2 h-auto py-4 hover:bg-blue-50"
                     asChild
                   >
-                    <Link href="/demo/search">
+                    <Link href="/public/foundeHotels">
                       <Calendar className="h-6 w-6 text-blue-600" />
                       <span className="text-sm">Réserver</span>
                     </Link>

@@ -1,3 +1,4 @@
+// @/app/api/hotel-amenity/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -20,54 +21,73 @@ export async function GET(request: NextRequest, context: RouteContext) {
       where: { id },
       include: includeHotels
         ? {
+            // ✅ Relation directe many-to-many selon votre schéma
             HotelCard: {
-              include: {
-                accommodationType: true,
-                destination: {
-                  include: {
-                    City: {
-                      include: {
-                        country: true,
-                      },
-                    },
+              select: {
+                id: true,
+                name: true,
+                starRating: true,
+                overallRating: true,
+                basePricePerNight: true,
+                currency: true,
+                accommodationType: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
                   },
                 },
-                hotelGroup: true,
-                details: {
-                  include: {
-                    address: {
-                      include: {
-                        city: {
-                          include: {
-                            country: true,
-                          },
-                        },
-                        neighborhood: true,
-                      },
-                    },
+                destination: {
+                  select: {
+                    id: true,
+                    name: true,
+                    type: true,
+                  },
+                },
+                hotelGroup: {
+                  select: {
+                    id: true,
+                    name: true,
                   },
                 },
               },
               orderBy: [{ overallRating: "desc" }, { name: "asc" }],
             },
+            // ✅ Table de jointure avec ordre personnalisé
             HotelCardToHotelAmenity: {
-              include: {
+              select: {
+                hotelCardId: true,
+                order: true,
+                createdAt: true,
                 hotelCard: {
-                  include: {
-                    accommodationType: true,
+                  select: {
+                    id: true,
+                    name: true,
+                    starRating: true,
+                    overallRating: true,
+                    accommodationType: {
+                      select: {
+                        id: true,
+                        name: true,
+                      },
+                    },
                     destination: {
-                      include: {
-                        City: {
-                          include: {
-                            country: true,
-                          },
-                        },
+                      select: {
+                        id: true,
+                        name: true,
                       },
                     },
                   },
                 },
               },
               orderBy: { order: "asc" },
+            },
+            // ✅ Compteurs d'utilisation
+            _count: {
+              select: {
+                HotelCard: true,
+                HotelCardToHotelAmenity: true,
+              },
             },
           }
         : {
@@ -76,6 +96,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 id: true,
                 name: true,
                 starRating: true,
+              },
+            },
+            _count: {
+              select: {
+                HotelCard: true,
+                HotelCardToHotelAmenity: true,
               },
             },
           },
@@ -118,8 +144,36 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Validation de la catégorie si fournie
-    if (category) {
+    // ✅ Validation du nom si fourni
+    if (name !== undefined) {
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
+        return NextResponse.json(
+          { error: "Name must be a non-empty string" },
+          { status: 400 }
+        );
+      }
+
+      // Vérifier l'unicité du nom (sauf si c'est le même équipement)
+      const nameExists = await prisma.hotelAmenity.findFirst({
+        where: {
+          name: {
+            equals: name.trim(),
+            mode: "insensitive",
+          },
+          NOT: { id },
+        },
+      });
+
+      if (nameExists) {
+        return NextResponse.json(
+          { error: "Hotel amenity with this name already exists" },
+          { status: 409 }
+        );
+      }
+    }
+
+    // ✅ Validation de la catégorie avec toutes les catégories selon votre schéma
+    if (category !== undefined && category !== null) {
       const validCategories = [
         "Location",
         "Amenity",
@@ -127,23 +181,71 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         "View",
         "Offer",
         "Food",
+        "Wellness", // ✅ Ajouté selon les commentaires du schéma
+        "Business", // ✅ Ajouté selon les commentaires du schéma
+        "Entertainment", // ✅ Ajouté selon les commentaires du schéma
+        "Transport", // ✅ Ajouté selon les commentaires du schéma
       ];
-      if (!validCategories.includes(category)) {
+
+      if (category && !validCategories.includes(category)) {
         return NextResponse.json(
-          { error: `Category must be one of: ${validCategories.join(", ")}` },
+          {
+            error: `Category must be one of: ${validCategories.join(", ")}`,
+            received: category,
+          },
           { status: 400 }
         );
       }
     }
 
+    // ✅ Validation de l'ordre
+    if (order !== undefined && order !== null) {
+      const orderNum = parseFloat(order);
+      if (isNaN(orderNum) || orderNum < 0 || orderNum > 9999) {
+        return NextResponse.json(
+          { error: "Order must be a number between 0 and 9999" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // ✅ Validation des autres champs
+    if (icon !== undefined && icon !== null && typeof icon !== "string") {
+      return NextResponse.json(
+        { error: "Icon must be a string" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      description !== undefined &&
+      description !== null &&
+      typeof description !== "string"
+    ) {
+      return NextResponse.json(
+        { error: "Description must be a string" },
+        { status: 400 }
+      );
+    }
+
     const updatedHotelAmenity = await prisma.hotelAmenity.update({
       where: { id },
       data: {
-        ...(name && { name }),
-        ...(category !== undefined && { category }),
-        ...(icon !== undefined && { icon }),
-        ...(description !== undefined && { description }),
-        ...(order !== undefined && { order }),
+        ...(name !== undefined && { name: name.trim() }),
+        ...(category !== undefined && { category: category?.trim() || null }),
+        ...(icon !== undefined && { icon: icon?.trim() || null }),
+        ...(description !== undefined && {
+          description: description?.trim() || null,
+        }),
+        ...(order !== undefined && { order: order ? parseFloat(order) : 100 }),
+      },
+      include: {
+        _count: {
+          select: {
+            HotelCard: true,
+            HotelCardToHotelAmenity: true,
+          },
+        },
       },
     });
 
@@ -151,12 +253,24 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   } catch (error) {
     console.error("Error updating hotel amenity:", error);
 
+    // ✅ Gestion d'erreurs Prisma améliorée
     if (error && typeof error === "object" && "code" in error) {
-      if (error.code === "P2002") {
-        return NextResponse.json(
-          { error: "Hotel amenity with this name already exists" },
-          { status: 409 }
-        );
+      switch (error.code) {
+        case "P2002":
+          return NextResponse.json(
+            { error: "Hotel amenity with this name already exists" },
+            { status: 409 }
+          );
+        case "P2003":
+          return NextResponse.json(
+            { error: "Invalid reference in the data provided" },
+            { status: 400 }
+          );
+        case "P2025":
+          return NextResponse.json(
+            { error: "Hotel amenity not found" },
+            { status: 404 }
+          );
       }
     }
 
@@ -177,8 +291,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const existingHotelAmenity = await prisma.hotelAmenity.findUnique({
       where: { id },
       include: {
-        HotelCard: true,
-        HotelCardToHotelAmenity: true,
+        _count: {
+          select: {
+            HotelCard: true,
+            HotelCardToHotelAmenity: true,
+          },
+        },
       },
     });
 
@@ -189,19 +307,19 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Vérifier s'il y a des hôtels associés
+    // ✅ Vérifier s'il y a des relations en utilisant les compteurs
     const hasRelatedData =
-      existingHotelAmenity.HotelCard.length > 0 ||
-      existingHotelAmenity.HotelCardToHotelAmenity.length > 0;
+      existingHotelAmenity._count.HotelCard > 0 ||
+      existingHotelAmenity._count.HotelCardToHotelAmenity > 0;
 
     if (hasRelatedData) {
       return NextResponse.json(
         {
           error: "Cannot delete hotel amenity with associated hotels",
           details: {
-            directHotelCards: existingHotelAmenity.HotelCard.length,
+            directHotelCards: existingHotelAmenity._count.HotelCard,
             linkedHotelCards:
-              existingHotelAmenity.HotelCardToHotelAmenity.length,
+              existingHotelAmenity._count.HotelCardToHotelAmenity,
           },
         },
         { status: 409 }
@@ -218,6 +336,17 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     );
   } catch (error) {
     console.error("Error deleting hotel amenity:", error);
+
+    // ✅ Gestion d'erreurs spécifiques
+    if (error && typeof error === "object" && "code" in error) {
+      if (error.code === "P2025") {
+        return NextResponse.json(
+          { error: "Hotel amenity not found" },
+          { status: 404 }
+        );
+      }
+    }
+
     return NextResponse.json(
       { error: "Failed to delete hotel amenity" },
       { status: 500 }

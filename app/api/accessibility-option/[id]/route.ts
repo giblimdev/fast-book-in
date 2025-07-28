@@ -1,65 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// ✅ Type corrigé pour Next.js 15
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/accessibility-option/[id] - Récupérer une option d'accessibilité par ID
+// GET /api/accessibility-option/[id] - Récupérer une option par ID
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    // ✅ Await des paramètres (obligatoire en Next.js 15)
     const { id } = await context.params;
-
-    // Paramètres de query optionnels
     const { searchParams } = new URL(request.url);
-    const includeHotels = searchParams.get("includeHotels") === "true";
+    const includeRelations = searchParams.get("include") === "true";
 
     const accessibilityOption = await prisma.accessibilityOption.findUnique({
       where: { id },
-      include: includeHotels
+      include: includeRelations
         ? {
             HotelCardToAccessibilityOption: {
               include: {
                 hotelCard: {
-                  include: {
-                    accommodationType: true,
-                    destination: {
-                      include: {
-                        City: {
-                          include: {
-                            country: true,
-                          },
-                        },
-                      },
-                    },
-                    hotelGroup: true,
-                    details: {
-                      include: {
-                        address: {
-                          include: {
-                            city: {
-                              include: {
-                                country: true,
-                              },
-                            },
-                            neighborhood: true,
-                          },
-                        },
-                      },
-                    },
+                  select: {
+                    id: true,
+                    name: true,
+                    starRating: true,
+                    overallRating: true,
                   },
                 },
               },
               orderBy: { order: "asc" },
             },
+            _count: {
+              select: {
+                HotelCardToAccessibilityOption: true,
+              },
+            },
           }
         : {
-            HotelCardToAccessibilityOption: {
+            _count: {
               select: {
-                hotelCardId: true,
-                order: true,
+                HotelCardToAccessibilityOption: true,
               },
             },
           },
@@ -82,99 +61,214 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 }
 
-// PUT /api/accessibility-option/[id] - Mettre à jour une option d'accessibilité
+// PUT /api/accessibility-option/[id] - Mettre à jour une option
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    // ✅ Await des paramètres
     const { id } = await context.params;
     const body = await request.json();
     const { name, code, category, description, icon, order } = body;
 
-    // Vérifier si l'option d'accessibilité existe
-    const existingAccessibilityOption =
-      await prisma.accessibilityOption.findUnique({
-        where: { id },
-      });
+    // Vérifier si l'option existe
+    const existingOption = await prisma.accessibilityOption.findUnique({
+      where: { id },
+    });
 
-    if (!existingAccessibilityOption) {
+    if (!existingOption) {
       return NextResponse.json(
         { error: "Accessibility option not found" },
         { status: 404 }
       );
     }
 
-    // Validation du code si fourni
-    if (code && !/^[A-Z_]{2,20}$/.test(code)) {
-      return NextResponse.json(
-        { error: "Code must be 2-20 uppercase letters or underscores" },
-        { status: 400 }
-      );
-    }
-
-    const updatedAccessibilityOption = await prisma.accessibilityOption.update({
-      where: { id },
-      data: {
-        ...(name && { name }),
-        ...(code && { code }),
-        ...(category && { category }),
-        ...(description !== undefined && { description }),
-        ...(icon !== undefined && { icon }),
-        ...(order !== undefined && { order }),
-      },
-    });
-
-    return NextResponse.json(updatedAccessibilityOption);
-  } catch (error) {
-    console.error("Error updating accessibility option:", error);
-
-    if (error && typeof error === "object" && "code" in error) {
-      if (error.code === "P2002") {
+    // Validation des données
+    if (name !== undefined) {
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
         return NextResponse.json(
-          { error: "Accessibility option code already exists" },
+          { error: "Name must be a non-empty string" },
+          { status: 400 }
+        );
+      }
+
+      if (name.trim().length > 255) {
+        return NextResponse.json(
+          { error: "Name must be less than 255 characters" },
+          { status: 400 }
+        );
+      }
+
+      // Vérifier l'unicité du nom (exclure l'option actuelle)
+      const existingName = await prisma.accessibilityOption.findFirst({
+        where: {
+          name: {
+            equals: name.trim(),
+            mode: "insensitive",
+          },
+          NOT: { id },
+        },
+      });
+
+      if (existingName) {
+        return NextResponse.json(
+          {
+            error: "Accessibility option with this name already exists",
+            existingOption: {
+              id: existingName.id,
+              name: existingName.name,
+              code: existingName.code,
+            },
+          },
           { status: 409 }
         );
       }
     }
 
-    return NextResponse.json(
-      { error: "Failed to update accessibility option" },
-      { status: 500 }
-    );
-  }
-}
+    if (code !== undefined) {
+      if (!code || typeof code !== "string" || code.trim().length === 0) {
+        return NextResponse.json(
+          { error: "Code must be a non-empty string" },
+          { status: 400 }
+        );
+      }
 
-// DELETE /api/accessibility-option/[id] - Supprimer une option d'accessibilité
-export async function DELETE(request: NextRequest, context: RouteContext) {
-  try {
-    // ✅ Await des paramètres
-    const { id } = await context.params;
+      const cleanCode = code.trim().toUpperCase();
+      if (!/^[A-Z0-9_]{1,50}$/.test(cleanCode)) {
+        return NextResponse.json(
+          {
+            error:
+              "Code must be 1-50 characters (uppercase letters, numbers, underscores only)",
+          },
+          { status: 400 }
+        );
+      }
 
-    // Vérifier si l'option d'accessibilité existe et récupérer les relations
-    const existingAccessibilityOption =
-      await prisma.accessibilityOption.findUnique({
-        where: { id },
-        include: {
-          HotelCardToAccessibilityOption: true,
+      // Vérifier l'unicité du code (exclure l'option actuelle)
+      const existingCode = await prisma.accessibilityOption.findFirst({
+        where: {
+          code: {
+            equals: cleanCode,
+            mode: "insensitive",
+          },
+          NOT: { id },
         },
       });
 
-    if (!existingAccessibilityOption) {
+      if (existingCode) {
+        return NextResponse.json(
+          {
+            error: "Accessibility option with this code already exists",
+            existingOption: {
+              id: existingCode.id,
+              name: existingCode.name,
+              code: existingCode.code,
+            },
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    if (category !== undefined) {
+      const validCategories = [
+        "Mobility",
+        "Visual",
+        "Hearing",
+        "Cognitive",
+        "Physical",
+        "Communication",
+        "General",
+      ];
+
+      if (!validCategories.includes(category)) {
+        return NextResponse.json(
+          {
+            error: `Category must be one of: ${validCategories.join(", ")}`,
+            received: category,
+            validOptions: validCategories,
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (
+      description !== undefined &&
+      description !== null &&
+      description.length > 1000
+    ) {
+      return NextResponse.json(
+        { error: "Description must be less than 1000 characters" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      order !== undefined &&
+      (typeof order !== "number" || order < 0 || order > 9999)
+    ) {
+      return NextResponse.json(
+        { error: "Order must be a number between 0 and 9999" },
+        { status: 400 }
+      );
+    }
+
+    const updatedOption = await prisma.accessibilityOption.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name: name.trim() }),
+        ...(code !== undefined && { code: code.trim().toUpperCase() }),
+        ...(category !== undefined && { category: category.trim() }),
+        ...(description !== undefined && {
+          description: description?.trim() || null,
+        }),
+        ...(icon !== undefined && { icon: icon?.trim() || null }),
+        ...(order !== undefined && { order }),
+      },
+      include: {
+        _count: {
+          select: {
+            HotelCardToAccessibilityOption: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(updatedOption);
+  } catch (error) {
+    console.error("Error updating accessibility option:", error);
+    return handlePrismaError(error);
+  }
+}
+
+// DELETE /api/accessibility-option/[id] - Supprimer une option
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  try {
+    const { id } = await context.params;
+
+    // Vérifier si l'option existe et récupérer les relations
+    const existingOption = await prisma.accessibilityOption.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            HotelCardToAccessibilityOption: true,
+          },
+        },
+      },
+    });
+
+    if (!existingOption) {
       return NextResponse.json(
         { error: "Accessibility option not found" },
         { status: 404 }
       );
     }
 
-    // Vérifier s'il y a des hôtels associés
-    if (existingAccessibilityOption.HotelCardToAccessibilityOption.length > 0) {
+    // Vérifier s'il y a des relations
+    if (existingOption._count.HotelCardToAccessibilityOption > 0) {
       return NextResponse.json(
         {
-          error:
-            "Cannot delete accessibility option with associated hotel cards",
-          details: {
-            hotelCardCount:
-              existingAccessibilityOption.HotelCardToAccessibilityOption.length,
-          },
+          error: "Cannot delete accessibility option that is being used",
+          usageCount: existingOption._count.HotelCardToAccessibilityOption,
         },
         { status: 409 }
       );
@@ -184,15 +278,63 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       where: { id },
     });
 
-    return NextResponse.json(
-      { message: "Accessibility option deleted successfully" },
-      { status: 200 }
-    );
+    return NextResponse.json({
+      message: "Accessibility option deleted successfully",
+      deletedOption: {
+        id: existingOption.id,
+        name: existingOption.name,
+        code: existingOption.code,
+      },
+    });
   } catch (error) {
     console.error("Error deleting accessibility option:", error);
-    return NextResponse.json(
-      { error: "Failed to delete accessibility option" },
-      { status: 500 }
-    );
+    return handlePrismaError(error);
   }
+}
+
+// Gestion des erreurs Prisma
+function handlePrismaError(error: any) {
+  if (error && typeof error === "object" && "code" in error) {
+    switch (error.code) {
+      case "P2002":
+        const target = error.meta?.target;
+        return NextResponse.json(
+          {
+            error: `Accessibility option with this ${
+              target?.[0] || "field"
+            } already exists`,
+            prismaError: error.code,
+            details: error.meta,
+          },
+          { status: 409 }
+        );
+      case "P2025":
+        return NextResponse.json(
+          {
+            error: "Accessibility option not found",
+            prismaError: error.code,
+          },
+          { status: 404 }
+        );
+      default:
+        console.error("Unhandled Prisma error:", error);
+        return NextResponse.json(
+          {
+            error: "Database error occurred",
+            prismaError: error.code,
+            message: error.message,
+          },
+          { status: 500 }
+        );
+    }
+  }
+
+  return NextResponse.json(
+    {
+      error: "Failed to process request",
+      details: error instanceof Error ? error.message : "Unknown error",
+      timestamp: new Date().toISOString(),
+    },
+    { status: 500 }
+  );
 }

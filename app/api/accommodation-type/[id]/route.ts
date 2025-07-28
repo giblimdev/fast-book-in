@@ -1,43 +1,33 @@
+// @/app/api/accommodation-type/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// ✅ Type corrigé pour Next.js 15
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/accommodation-type/[id] - Récupérer un type d'hébergement par ID
+// GET /api/accommodation-type/[id]
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    // ✅ Await des paramètres (obligatoire en Next.js 15)
     const { id } = await context.params;
-
-    // Paramètres de query optionnels
-    const { searchParams } = new URL(request.url);
-    const includeHotels = searchParams.get("includeHotels") === "true";
 
     const accommodationType = await prisma.accommodationType.findUnique({
       where: { id },
-      include: includeHotels
-        ? {
-            HotelCard: {
-              include: {
-                accommodationType: true,
-                destination: {
-                  include: {
-                    City: {
-                      include: {
-                        country: true,
-                      },
-                    },
-                  },
-                },
-                hotelGroup: true,
-              },
-              orderBy: [{ overallRating: "desc" }, { name: "asc" }],
-            },
-          }
-        : undefined,
+      include: {
+        HotelCard: {
+          select: {
+            id: true,
+            name: true,
+            starRating: true,
+            overallRating: true,
+          },
+        },
+        _count: {
+          select: {
+            HotelCard: true,
+          },
+        },
+      },
     });
 
     if (!accommodationType) {
@@ -57,60 +47,116 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 }
 
-// PUT /api/accommodation-type/[id] - Mettre à jour un type d'hébergement
+// PUT /api/accommodation-type/[id]
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    // ✅ Await des paramètres
     const { id } = await context.params;
     const body = await request.json();
     const { name, code, category, description, order } = body;
 
-    // Vérifier si le type d'hébergement existe
-    const existingAccommodationType = await prisma.accommodationType.findUnique(
-      {
-        where: { id },
-      }
-    );
+    // Vérifier si le type existe
+    const existingType = await prisma.accommodationType.findUnique({
+      where: { id },
+    });
 
-    if (!existingAccommodationType) {
+    if (!existingType) {
       return NextResponse.json(
         { error: "Accommodation type not found" },
         { status: 404 }
       );
     }
 
-    // Validation du code si fourni
-    if (code && !/^[A-Z_]{2,10}$/.test(code)) {
-      return NextResponse.json(
-        { error: "Code must be 2-10 uppercase letters or underscores" },
-        { status: 400 }
-      );
-    }
-
-    const updatedAccommodationType = await prisma.accommodationType.update({
-      where: { id },
-      data: {
-        ...(name && { name }),
-        ...(code && { code }),
-        ...(category && { category }),
-        ...(description !== undefined && { description }),
-        ...(order !== undefined && { order }),
-      },
-    });
-
-    return NextResponse.json(updatedAccommodationType);
-  } catch (error) {
-    console.error("Error updating accommodation type:", error);
-
-    if (error && typeof error === "object" && "code" in error) {
-      if (error.code === "P2002") {
+    // Validations (identiques au POST mais optionnelles)
+    if (name !== undefined) {
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
         return NextResponse.json(
-          { error: "Accommodation type code already exists" },
+          { error: "Name must be a non-empty string" },
+          { status: 400 }
+        );
+      }
+
+      // Vérifier l'unicité du nom (sauf si c'est le même)
+      const nameExists = await prisma.accommodationType.findFirst({
+        where: {
+          name: {
+            equals: name.trim(),
+            mode: "insensitive",
+          },
+          NOT: { id },
+        },
+      });
+
+      if (nameExists) {
+        return NextResponse.json(
+          { error: "Accommodation type with this name already exists" },
           { status: 409 }
         );
       }
     }
 
+    if (code !== undefined) {
+      if (!code || typeof code !== "string" || code.trim().length === 0) {
+        return NextResponse.json(
+          { error: "Code must be a non-empty string" },
+          { status: 400 }
+        );
+      }
+
+      const cleanCode = code.trim().toUpperCase();
+      if (!/^[A-Z0-9_]{2,50}$/.test(cleanCode)) {
+        return NextResponse.json(
+          {
+            error:
+              "Code must be 2-50 characters (uppercase letters, numbers, underscores only)",
+          },
+          { status: 400 }
+        );
+      }
+
+      // Vérifier l'unicité du code (seulement si changé)
+      if (cleanCode !== existingType.code) {
+        const codeExists = await prisma.accommodationType.findFirst({
+          where: {
+            code: {
+              equals: cleanCode,
+              mode: "insensitive",
+            },
+            NOT: { id },
+          },
+        });
+
+        if (codeExists) {
+          return NextResponse.json(
+            { error: "Accommodation type with this code already exists" },
+            { status: 409 }
+          );
+        }
+      }
+    }
+
+    const updatedType = await prisma.accommodationType.update({
+      where: { id },
+      data: {
+        ...(name !== undefined && { name: name.trim() }),
+        ...(code !== undefined && { code: code.trim().toUpperCase() }),
+        ...(category !== undefined && { category: category.trim() }),
+        ...(description !== undefined && {
+          description: description?.trim() || null,
+        }),
+        ...(order !== undefined && { order: order ? parseInt(order) : 100 }),
+      },
+      include: {
+        _count: {
+          select: {
+            HotelCard: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(updatedType);
+  } catch (error) {
+    console.error("Error updating accommodation type:", error);
     return NextResponse.json(
       { error: "Failed to update accommodation type" },
       { status: 500 }
@@ -118,36 +164,39 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 }
 
-// DELETE /api/accommodation-type/[id] - Supprimer un type d'hébergement
+// DELETE /api/accommodation-type/[id]
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    // ✅ Await des paramètres
     const { id } = await context.params;
 
-    // Vérifier si le type d'hébergement existe et récupérer les hôtels associés
-    const existingAccommodationType = await prisma.accommodationType.findUnique(
-      {
-        where: { id },
-        include: {
-          HotelCard: true,
+    // Vérifier si le type existe et s'il est utilisé
+    const existingType = await prisma.accommodationType.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            HotelCard: true,
+          },
         },
-      }
-    );
+      },
+    });
 
-    if (!existingAccommodationType) {
+    if (!existingType) {
       return NextResponse.json(
         { error: "Accommodation type not found" },
         { status: 404 }
       );
     }
 
-    // Vérifier s'il y a des hôtels associés
-    if (existingAccommodationType.HotelCard.length > 0) {
+    // Empêcher la suppression si utilisé
+    if (existingType._count.HotelCard > 0) {
       return NextResponse.json(
         {
           error: "Cannot delete accommodation type with associated hotels",
           details: {
-            hotelCount: existingAccommodationType.HotelCard.length,
+            hotelCards: existingType._count.HotelCard,
+            typeName: existingType.name,
+            typeCode: existingType.code,
           },
         },
         { status: 409 }
@@ -159,7 +208,14 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     });
 
     return NextResponse.json(
-      { message: "Accommodation type deleted successfully" },
+      {
+        message: "Accommodation type deleted successfully",
+        deletedType: {
+          id: existingType.id,
+          name: existingType.name,
+          code: existingType.code,
+        },
+      },
       { status: 200 }
     );
   } catch (error) {
