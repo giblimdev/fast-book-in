@@ -7,7 +7,7 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-// GET /api/admin/rooms/[id] - Récupérer une chambre spécifique (admin)
+// GET /api/admin/hotelRooms/[id] - Récupérer une chambre spécifique (admin)
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     // ✅ Await des paramètres (obligatoire en Next.js 15)
@@ -21,30 +21,100 @@ export async function GET(request: NextRequest, context: RouteContext) {
       where: { id },
       include: includeRelations
         ? {
-            hotelCard: {
+            // ✅ Relations correctes selon votre schéma
+            reservations: {
               include: {
-                accommodationType: {
-                  select: { name: true, category: true },
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
                 },
-                destination: {
-                  select: { name: true, type: true },
+              },
+              orderBy: { checkIn: "desc" },
+              take: 10, // Dernières réservations
+            },
+            availability: {
+              where: {
+                date: {
+                  gte: new Date(),
                 },
-                hotelGroup: {
-                  select: { name: true },
+              },
+              orderBy: { date: "asc" },
+              take: 30, // Prochains 30 jours
+            },
+            RoomUnavailability: {
+              where: {
+                endDate: {
+                  gte: new Date(),
                 },
-                images: {
-                  take: 3,
-                  select: { imageUrl: true, alt: true },
+              },
+              orderBy: { startDate: "asc" },
+            },
+            HotelDetails: {
+              include: {
+                address: {
+                  include: {
+                    city: {
+                      include: {
+                        country: true,
+                      },
+                    },
+                  },
+                },
+                HotelCard: {
+                  include: {
+                    accommodationType: {
+                      select: { name: true, category: true },
+                    },
+                    destination: {
+                      include: {
+                        DestinationToCity: {
+                          include: {
+                            city: {
+                              include: {
+                                country: true,
+                              },
+                            },
+                          },
+                        },
+                      },
+                      select: { name: true, type: true },
+                    },
+                    hotelGroup: {
+                      select: { name: true },
+                    },
+                    images: {
+                      take: 3,
+                      include: {
+                        image: {
+                          select: {
+                            path: true,
+                            description: true,
+                          },
+                        },
+                      },
+                      select: {
+                        alt: true,
+                        order: true,
+                      },
+                    },
+                  },
                 },
               },
             },
           }
         : {
-            hotelCard: {
-              select: {
-                id: true,
-                name: true,
-                starRating: true,
+            HotelDetails: {
+              include: {
+                HotelCard: {
+                  select: {
+                    id: true,
+                    name: true,
+                    starRating: true,
+                  },
+                },
               },
             },
           },
@@ -54,19 +124,38 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
 
-    // Statistiques additionnelles pour cette chambre
-    const hotelRoomStats = await prisma.hotelRoom.aggregate({
-      where: { hotelCardId: room.hotelCardId },
-      _avg: { pricePerNight: true },
-      _count: { id: true },
-    });
+    // ✅ Statistiques basées sur les vraies relations
+    let roomStats = null;
+    if (room.HotelDetails?.HotelCard) {
+      const hotelRoomStats = await prisma.hotelRoom.aggregate({
+        where: {
+          HotelDetails: {
+            HotelCard: {
+              id: room.HotelDetails.HotelCard.id,
+            },
+          },
+        },
+        _count: { id: true },
+      });
+
+      // Statistiques des réservations pour cette chambre
+      const reservationStats = await prisma.reservation.aggregate({
+        where: {
+          hotelRoomId: id,
+          status: { in: ["confirmed", "checked_in", "checked_out"] },
+        },
+        _count: { id: true },
+      });
+
+      roomStats = {
+        totalRoomsInHotel: hotelRoomStats._count.id,
+        totalReservations: reservationStats._count.id,
+      };
+    }
 
     return NextResponse.json({
       room,
-      hotelStats: {
-        averageRoomPrice: hotelRoomStats._avg.pricePerNight,
-        totalRooms: hotelRoomStats._count.id,
-      },
+      stats: roomStats,
     });
   } catch (error) {
     console.error("Error fetching room:", error);
@@ -77,7 +166,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 }
 
-// PUT /api/admin/rooms/[id] - Modifier une chambre (admin)
+// PUT /api/admin/hotelRooms/[id] - Modifier une chambre (admin)
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
     // ✅ Await des paramètres
@@ -85,82 +174,77 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const body = await request.json();
 
     const {
-      name,
-      description,
-      maxGuests,
-      bedCount,
-      bedType,
-      roomSize,
-      pricePerNight,
-      currency,
-      isAvailable,
-      images,
+      slug,
+      hotelDetailsId, // ✅ Seuls champs modifiables selon votre schéma
     } = body;
 
     // Vérifier si la chambre existe
     const existingRoom = await prisma.hotelRoom.findUnique({
       where: { id },
-      select: { hotelCardId: true },
+      include: {
+        HotelDetails: {
+          include: {
+            HotelCard: {
+              select: { id: true, name: true },
+            },
+          },
+        },
+      },
     });
 
     if (!existingRoom) {
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
 
-    // Validation des nombres si fournis
-    if (maxGuests !== undefined && maxGuests < 1) {
-      return NextResponse.json(
-        { error: "maxGuests must be at least 1" },
-        { status: 400 }
-      );
+    // ✅ Validation pour hotelDetailsId si fourni
+    if (hotelDetailsId && hotelDetailsId !== existingRoom.hotelDetailsId) {
+      const hotelDetailsExists = await prisma.hotelDetails.findUnique({
+        where: { id: hotelDetailsId },
+        select: { id: true },
+      });
+
+      if (!hotelDetailsExists) {
+        return NextResponse.json(
+          { error: "Hotel details not found" },
+          { status: 404 }
+        );
+      }
     }
 
-    if (bedCount !== undefined && bedCount < 1) {
-      return NextResponse.json(
-        { error: "bedCount must be at least 1" },
-        { status: 400 }
-      );
+    // ✅ Validation du slug si fourni
+    if (slug && slug !== existingRoom.slug) {
+      const existingSlug = await prisma.hotelRoom.findFirst({
+        where: {
+          slug,
+          id: { not: id },
+        },
+      });
+
+      if (existingSlug) {
+        return NextResponse.json(
+          { error: "Room with this slug already exists" },
+          { status: 409 }
+        );
+      }
     }
 
-    if (pricePerNight !== undefined && pricePerNight < 0) {
-      return NextResponse.json(
-        { error: "pricePerNight must be non-negative" },
-        { status: 400 }
-      );
-    }
-
-    if (roomSize !== undefined && roomSize <= 0) {
-      return NextResponse.json(
-        { error: "roomSize must be greater than 0" },
-        { status: 400 }
-      );
-    }
-
-    // Mettre à jour la chambre
+    // ✅ Mettre à jour la chambre (seulement les champs existants)
     const updatedRoom = await prisma.hotelRoom.update({
       where: { id },
       data: {
-        ...(name && { name }),
-        ...(description !== undefined && { description }),
-        ...(maxGuests !== undefined && { maxGuests: Number(maxGuests) }),
-        ...(bedCount !== undefined && { bedCount: Number(bedCount) }),
-        ...(bedType && { bedType }),
-        ...(roomSize !== undefined && {
-          roomSize: roomSize ? Number(roomSize) : null,
-        }),
-        ...(pricePerNight !== undefined && {
-          pricePerNight: Number(pricePerNight),
-        }),
-        ...(currency && { currency }),
-        ...(isAvailable !== undefined && { isAvailable: Boolean(isAvailable) }),
-        ...(images !== undefined && { images }),
+        ...(slug !== undefined && { slug }),
+        ...(hotelDetailsId !== undefined && { hotelDetailsId }),
       },
       include: {
-        hotelCard: {
-          select: {
-            id: true,
-            name: true,
-            starRating: true,
+        HotelDetails: {
+          include: {
+            HotelCard: {
+              select: {
+                id: true,
+                name: true,
+                starRating: true,
+              },
+            },
           },
         },
       },
@@ -170,6 +254,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   } catch (error) {
     console.error("Error updating room:", error);
     if (error && typeof error === "object" && "code" in error) {
+      if (error.code === "P2002") {
+        return NextResponse.json(
+          { error: "Room with this slug already exists" },
+          { status: 409 }
+        );
+      }
       if (error.code === "P2003") {
         return NextResponse.json(
           { error: "Invalid reference in update" },
@@ -185,20 +275,36 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 }
 
-// DELETE /api/admin/rooms/[id] - Supprimer une chambre (admin)
+// DELETE /api/admin/hotelRooms/[id] - Supprimer une chambre (admin)
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     // ✅ Await des paramètres
     const { id } = await context.params;
 
-    // Vérifier si la chambre existe
+    // Vérifier si la chambre existe et récupérer les dépendances
     const existingRoom = await prisma.hotelRoom.findUnique({
       where: { id },
-      select: {
-        hotelCardId: true,
-        name: true,
-        hotelCard: {
-          select: { name: true },
+      include: {
+        reservations: {
+          where: {
+            status: {
+              in: ["confirmed", "checked_in"], // ✅ Réservations actives
+            },
+          },
+          select: { id: true },
+        },
+        availability: {
+          select: { id: true },
+        },
+        RoomUnavailability: {
+          select: { id: true },
+        },
+        HotelDetails: {
+          include: {
+            HotelCard: {
+              select: { name: true },
+            },
+          },
         },
       },
     });
@@ -207,8 +313,29 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
 
-    // TODO: Vérifier s'il y a des réservations actives pour cette chambre
-    // Cela dépendra de votre modèle de réservation futur
+    // ✅ Vérifier s'il y a des réservations actives
+    if (existingRoom.reservations.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Cannot delete room with active reservations",
+          activeReservations: existingRoom.reservations.length,
+        },
+        { status: 409 }
+      );
+    }
+
+    // ✅ Supprimer les dépendances en cascade
+    if (existingRoom.availability.length > 0) {
+      await prisma.calendarAvailability.deleteMany({
+        where: { hotelRoomId: id },
+      });
+    }
+
+    if (existingRoom.RoomUnavailability.length > 0) {
+      await prisma.roomUnavailability.deleteMany({
+        where: { hotelRoomId: id },
+      });
+    }
 
     // Supprimer la chambre
     await prisma.hotelRoom.delete({
@@ -220,8 +347,8 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         message: "Room deleted successfully",
         deletedRoom: {
           id,
-          name: existingRoom.name,
-          hotel: existingRoom.hotelCard.name,
+          slug: existingRoom.slug,
+          hotelName: existingRoom.HotelDetails?.HotelCard?.name || "Unknown",
         },
       },
       { status: 200 }

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 _count: {
                   select: {
                     HotelReview: true,
-                    HotelRoom: true,
+                    HotelRoomType: true, // ✅ Corrigé: HotelRoomType au lieu de HotelRoom
                   },
                 },
               },

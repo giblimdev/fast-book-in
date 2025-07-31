@@ -1,124 +1,48 @@
-// @/app/api/hotel-card/route.ts
+// File: /app/api/hotel-card/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// GET - Récupérer tous les hôtels
-export async function GET(request: NextRequest) {
-  console.log("🚀 [GET] Début de la récupération des hôtels");
-
+// GET - Récupérer la liste des hôtels avec relations et statistiques optionnelles
+export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const search = searchParams.get("search");
-    const cityId = searchParams.get("cityId");
-    const starRating = searchParams.get("starRating");
-    const isPartner = searchParams.get("isPartner");
-    const includeAll = searchParams.get("includeAll") === "true";
+    const include = searchParams.get("include") === "true";
+    const hostId = searchParams.get("hostId") || undefined;
 
-    console.log("📋 [GET] Paramètres de recherche:", {
-      page,
-      limit,
-      search,
-      cityId,
-      starRating,
-      isPartner,
-      includeAll,
-    });
+    // Filtrage par hostId (adapter selon ta logique si besoin)
+    const whereClause = hostId ? {} : {};
 
-    // Construction du where clause
-    const where: any = {};
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { shortDescription: { contains: search, mode: "insensitive" } },
-      ];
-    }
-
-    if (cityId) where.idCity = cityId;
-    if (starRating) where.starRating = parseInt(starRating);
-    if (isPartner !== null && isPartner !== undefined) {
-      where.isPartner = isPartner === "true";
-    }
-
-    const hotelCards = await prisma.hotelCard.findMany({
-      where,
-      include: {
-        accommodationType: true,
-        destination: {
-          include: {
-            DestinationToCity: {
+    const hotels = await prisma.hotelCard.findMany({
+      where: whereClause,
+      include: include
+        ? {
+            hotelDetails: {
               include: {
-                city: {
+                address: {
                   include: {
-                    country: true,
+                    city: {
+                      include: { country: true },
+                    },
                   },
                 },
+                hotelDetailsToRoomAmenity: {
+                  include: { roomAmenity: true },
+                  orderBy: { order: "asc" },
+                },
+                label: true,
+                room: true,
               },
-              orderBy: { order: "asc" },
             },
-          },
-        },
-        hotelGroup: true,
-        parking: true,
-        images: {
-          where: { imageCategories: "hotelCard" }, // ✅ Correction selon votre schéma
-          orderBy: { order: "asc" },
-          take: 5,
-        },
-        // ✅ Relations many-to-many selon votre schéma
-        HotelCardToLabel: {
-          include: {
-            label: true,
-          },
-          orderBy: { order: "asc" },
-        },
-        HotelCardToHotelAmenity: {
-          include: {
-            hotelAmenity: true,
-          },
-          orderBy: { order: "asc" },
-        },
-        HotelCardToAccessibilityOption: {
-          include: {
-            accessibilityOption: true,
-          },
-          orderBy: { order: "asc" },
-        },
-        HotelCardToHotelHighlight: {
-          include: {
-            hotelHighlight: true,
-          },
-          orderBy: { order: "asc" },
-        },
-        // ✅ Relations directes selon votre nouveau schéma
-        HotelAmenity: true, // Relation directe
-        HotelFAQ: {
-          orderBy: { order: "asc" },
-        },
-        HotelPolicy: true,
-        HotelRoomType: includeAll
-          ? {
+            hotelRoomType: {
               include: {
-                images: true,
+                images: { include: { image: true } },
                 CancellationPolicy: true,
-                RoomUnavailability: true,
-              },
-            }
-          : undefined,
-        HotelReview: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                firstName: true,
-                lastName: true,
               },
             },
-            replies: {
+            hotelFAQ: true,
+            hotelPolicy: true,
+            hotelReview: {
               include: {
                 user: {
                   select: {
@@ -126,429 +50,366 @@ export async function GET(request: NextRequest) {
                     name: true,
                     firstName: true,
                     lastName: true,
+                    image: true,
                   },
                 },
-              },
-            },
-          },
-          orderBy: { createdAt: "desc" },
-          take: includeAll ? undefined : 5,
-        },
-        UserWishList: includeAll
-          ? {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
-              },
-            }
-          : undefined,
-        HotelDetails: includeAll
-          ? {
-              include: {
-                address: {
+                replies: {
                   include: {
-                    city: {
-                      include: {
-                        country: true,
+                    user: {
+                      select: {
+                        id: true,
+                        name: true,
+                        firstName: true,
+                        lastName: true,
+                        image: true,
                       },
                     },
                   },
                 },
-                HotelDetailsToRoomAmenity: {
-                  include: {
-                    roomAmenity: true,
-                  },
-                  orderBy: { order: "asc" },
-                },
-                Label: true,
-                room: true,
               },
-            }
-          : undefined,
-        // ✅ Compteurs mis à jour selon votre schéma
-        _count: {
-          select: {
-            HotelReview: true,
-            UserWishList: true,
-            HotelDetails: true,
-            HotelRoomType: true,
-            HotelFAQ: true,
+              orderBy: { createdAt: "desc" },
+            },
+            images: {
+              include: { image: true },
+              orderBy: { order: "asc" },
+            },
+            destination: true,
+            accommodationType: true,
+            hotelGroup: true,
+            parking: true,
+            hotelCardToHotelHighlight: {
+              include: { hotelHighlight: true },
+              orderBy: { order: "asc" },
+            },
+            hotelCardToLabel: {
+              include: { label: true },
+              orderBy: { order: "asc" },
+            },
+            hotelCardToAccessibilityOption: {
+              include: { accessibilityOption: true },
+              orderBy: { order: "asc" },
+            },
+            hotelCardToHotelAmenity: {
+              include: { hotelAmenity: true },
+              orderBy: { order: "asc" },
+            },
+            hostDashboard: true,
+            userWishList: true,
+          }
+        : {
+            images: {
+              take: 1,
+              include: { image: true },
+              orderBy: { order: "asc" },
+            },
+            hotelReview: {
+              select: { rating: true },
+            },
           },
-        },
-      },
-      orderBy: [{ order: "asc" }, { name: "asc" }],
-      skip: (page - 1) * limit,
-      take: limit,
+      orderBy: { order: "asc" },
     });
 
-    console.log(`✅ [GET] ${hotelCards.length} hôtels récupérés`);
+    // Calcul des statistiques avec gestion prudente de la présence des relations
+    const hotelsWithStats = await Promise.all(
+      hotels.map(async (hotel) => {
+        if (!include) return hotel;
 
-    // ✅ Enrichir les données avec les informations de ville
-    const enrichedHotels = await Promise.all(
-      hotelCards.map(async (hotel) => {
-        let city = null;
-        if (hotel.idCity) {
-          try {
-            city = await prisma.city.findUnique({
-              where: { id: hotel.idCity },
-              include: {
-                country: true,
-                neighborhoods: {
-                  take: 3,
-                  orderBy: { order: "asc" },
-                },
+        const reviews = (hotel as any).hotelReview || [];
+        const avgRating =
+          reviews.length > 0
+            ? reviews.reduce(
+                (sum: number, r: any) => sum + (r.rating ?? 0),
+                0
+              ) / reviews.filter((r: any) => r.rating !== null).length
+            : null;
+
+        const activeReservations = await prisma.reservation.count({
+          where: {
+            hotelRoom: {
+              HotelDetails: {
+                HotelCard: { some: { id: hotel.id } },
               },
-            });
-          } catch (cityError) {
-            console.warn(`Ville non trouvée pour l'ID: ${hotel.idCity}`);
-          }
-        }
+            },
+            status: { in: ["confirmed", "checked_in"] },
+            checkOut: { gte: new Date() },
+          },
+        });
 
         return {
           ...hotel,
-          city,
-          // Transformer la destination pour avoir un tableau de villes
-          destination: hotel.destination
-            ? {
-                ...hotel.destination,
-                cities:
-                  hotel.destination.DestinationToCity?.map((rel) => rel.city) ||
-                  [],
-                DestinationToCity: undefined,
-              }
-            : null,
-          // ✅ Formatage des relations many-to-many
-          labels: hotel.HotelCardToLabel?.map((rel) => rel.label) || [],
-          amenities:
-            hotel.HotelCardToHotelAmenity?.map((rel) => rel.hotelAmenity) || [],
-          accessibilityOptions:
-            hotel.HotelCardToAccessibilityOption?.map(
-              (rel) => rel.accessibilityOption
-            ) || [],
-          highlights:
-            hotel.HotelCardToHotelHighlight?.map((rel) => rel.hotelHighlight) ||
-            [],
-          // ✅ Nouvelles propriétés formatées selon votre schéma
-          directAmenities: hotel.HotelAmenity || [],
-          faqs: hotel.HotelFAQ || [],
-          policies: hotel.HotelPolicy || [],
-          roomTypes: hotel.HotelRoomType || [],
-          reviews: hotel.HotelReview || [],
-          wishlistUsers: hotel.UserWishList || [],
-          details: hotel.HotelDetails || [],
-          // Suppression des relations intermédiaires
-          HotelCardToLabel: undefined,
-          HotelCardToHotelAmenity: undefined,
-          HotelCardToAccessibilityOption: undefined,
-          HotelCardToHotelHighlight: undefined,
-          HotelAmenity: undefined,
-          HotelFAQ: undefined,
-          HotelPolicy: undefined,
-          HotelRoomType: undefined,
-          HotelReview: undefined,
-          UserWishList: undefined,
-          HotelDetails: undefined,
+          calculatedStats: {
+            averageRating: avgRating,
+            activeReservations,
+            wishlistCount: (hotel as any).userWishList?.length ?? 0,
+          },
         };
       })
     );
 
-    const total = await prisma.hotelCard.count({ where });
-
-    console.log(
-      `✅ [GET] Total: ${total} hôtels, Page: ${page}/${Math.ceil(
-        total / limit
-      )}`
-    );
-
-    return NextResponse.json({
-      data: enrichedHotels,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    });
+    return NextResponse.json(hotelsWithStats);
   } catch (error) {
-    console.error("❌ [GET] Erreur lors de la récupération des hôtels:", error);
+    console.error("Error fetching hotels:", error);
     return NextResponse.json(
-      {
-        error: "Erreur lors de la récupération des hôtels",
-        details: error instanceof Error ? error.message : "Erreur inconnue",
-        data: [],
-        pagination: {
-          page: 1,
-          limit: 50,
-          total: 0,
-          totalPages: 0,
-        },
-      },
+      { error: "Failed to fetch hotels" },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
-// POST - Créer un nouvel hôtel
-export async function POST(request: NextRequest) {
-  console.log("🚀 [POST] Début de la création d'hôtel");
-
+// POST - Création d'un hôtel (sans authentification)
+export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log("📋 [POST] Données reçues:", JSON.stringify(body, null, 2));
 
-    // ✅ Validation des champs requis selon votre schéma Prisma
-    const requiredFields = [
-      "name",
-      "idCity",
-      "starRating",
-      "basePricePerNight",
-    ];
-
-    for (const field of requiredFields) {
-      if (!body[field]) {
-        console.error(`❌ [POST] Champ requis manquant: ${field}`);
-        return NextResponse.json(
-          { error: `Le champ ${field} est requis` },
-          { status: 400 }
-        );
-      }
-    }
-
-    // ✅ Validations des valeurs
-    if (body.starRating < 1 || body.starRating > 5) {
+    if (!body.name || !body.idCity || !body.basePricePerNight) {
       return NextResponse.json(
-        { error: "La note en étoiles doit être entre 1 et 5" },
+        { error: "Missing required fields: name, idCity, basePricePerNight" },
         { status: 400 }
       );
     }
 
-    if (body.basePricePerNight <= 0) {
-      return NextResponse.json(
-        { error: "Le prix de base par nuit doit être positif" },
-        { status: 400 }
-      );
-    }
-
-    if (
-      body.overallRating !== undefined &&
-      (body.overallRating < 0 || body.overallRating > 5)
-    ) {
-      return NextResponse.json(
-        { error: "La note globale doit être entre 0 et 5" },
-        { status: 400 }
-      );
-    }
-
-    // ✅ Validation de la ville (obligatoire selon votre schéma)
     const cityExists = await prisma.city.findUnique({
       where: { id: body.idCity },
     });
-
     if (!cityExists) {
-      console.error("❌ [POST] Ville non trouvée:", body.idCity);
+      return NextResponse.json({ error: "Invalid city ID" }, { status: 400 });
+    }
+
+    const newHotel = await prisma.$transaction(async (tx) => {
+      const hotel = await tx.hotelCard.create({
+        data: {
+          name: body.name,
+          idCity: body.idCity,
+          shortDescription: body.shortDescription,
+          starRating: body.starRating,
+          basePricePerNight: parseFloat(body.basePricePerNight),
+          regularPrice: body.regularPrice
+            ? parseFloat(body.regularPrice)
+            : null,
+          currency: body.currency ?? "EUR",
+          isPartner: body.isPartner || false,
+          promoMessage: body.promoMessage,
+          imageMessage: body.imageMessage,
+          hotelGroupId: body.hotelGroupId,
+          hotelParkingId: body.hotelParkingId,
+          order: body.order ?? 20,
+        },
+      });
+
+      if (body.hotelDetails) {
+        await tx.hotelDetails.create({
+          data: {
+            description: body.hotelDetails.description,
+            checkInTime: body.hotelDetails.checkInTime || "15:00",
+            checkOutTime: body.hotelDetails.checkOutTime || "11:00",
+            numberOfRooms: body.hotelDetails.numberOfRooms,
+            numberOfFloors: body.hotelDetails.numberOfFloors,
+            languages: body.hotelDetails.languages || [],
+            address: {
+              create: {
+                name: body.hotelDetails.address.name,
+                streetNumber: body.hotelDetails.address.streetNumber,
+                streetType: body.hotelDetails.address.streetType,
+                streetName: body.hotelDetails.address.streetName,
+                addressLine2: body.hotelDetails.address.addressLine2,
+                postalCode: body.hotelDetails.address.postalCode,
+                cityId: body.hotelDetails.address.cityId || body.idCity,
+                neighborhoodId: body.hotelDetails.address.neighborhoodId,
+                latitude: body.hotelDetails.address.latitude,
+                longitude: body.hotelDetails.address.longitude,
+              },
+            },
+            hotelCardid: hotel.id,
+          },
+        });
+      }
+
+      if (body.destinationIds?.length) {
+        await tx.hotelCard.update({
+          where: { id: hotel.id },
+          data: {
+            destination: {
+              connect: body.destinationIds.map((id: string) => ({ id })),
+            },
+          },
+        });
+      }
+
+      if (body.accommodationTypeIds?.length) {
+        await tx.hotelCard.update({
+          where: { id: hotel.id },
+          data: {
+            accommodationType: {
+              connect: body.accommodationTypeIds.map((id: string) => ({ id })),
+            },
+          },
+        });
+      }
+
+      await tx.hostDashboard.create({
+        data: {
+          hotelCardId: hotel.id,
+          totalBookings: 0,
+          upcomingBookings: 0,
+          currentGuests: 0,
+          monthlyRevenue: 0,
+          occupancyRate: 0,
+          averageRating: 0,
+          totalReviews: 0,
+          availableRooms: body.hotelDetails?.numberOfRooms ?? 0,
+        },
+      });
+
+      if (body.roomTypes?.length) {
+        for (const rt of body.roomTypes) {
+          await tx.hotelRoomType.create({
+            data: {
+              hotelCardId: hotel.id,
+              name: rt.name,
+              description: rt.description,
+              maxGuests: rt.maxGuests,
+              bedCount: rt.bedCount,
+              bedType: rt.bedType,
+              roomSize: rt.roomSize,
+              pricePerNight: parseFloat(rt.pricePerNight),
+              currency: rt.currency ?? "EUR",
+              isAvailable: rt.isAvailable ?? true,
+            },
+          });
+        }
+      }
+
+      await tx.hotelPolicy.create({
+        data: {
+          hotelCardId: hotel.id,
+          checkIn: body.hotelDetails?.checkInTime ?? "15:00",
+          checkOut: body.hotelDetails?.checkOutTime ?? "11:00",
+          cancellation:
+            body.cancellationPolicy ??
+            "Annulation gratuite jusqu'à 24h avant l'arrivée",
+          pets: body.pets || false,
+          smoking: body.smoking || false,
+          parties: body.parties || false,
+          children: body.childrenPolicy ?? "",
+        },
+      });
+
+      return hotel;
+    });
+
+    const fullHotel = await prisma.hotelCard.findUnique({
+      where: { id: newHotel.id },
+      include: {
+        hotelDetails: { include: { address: { include: { city: true } } } },
+        hotelRoomType: true,
+        hotelPolicy: true,
+        hostDashboard: true,
+        destination: true,
+        accommodationType: true,
+      },
+    });
+
+    return NextResponse.json(fullHotel, { status: 201 });
+  } catch (e: any) {
+    console.error("Failed to create hotel:", e);
+    return NextResponse.json(
+      { error: "Failed to create hotel", details: e.message ?? e.toString() },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT - Mise à jour d'un hôtel (sans authentification et contrôle)
+export async function PUT(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const hotelId = searchParams.get("id");
+
+    if (!hotelId)
+      return NextResponse.json({ error: "Hotel ID required" }, { status: 400 });
+
+    const existing = await prisma.hotelCard.findUnique({
+      where: { id: hotelId },
+    });
+    if (!existing)
+      return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
+
+    const body = await request.json();
+
+    const updated = await prisma.hotelCard.update({
+      where: { id: hotelId },
+      data: {
+        ...(body.name && { name: body.name }),
+        ...(body.shortDescription && {
+          shortDescription: body.shortDescription,
+        }),
+        ...(body.starRating !== undefined && { starRating: body.starRating }),
+        ...(body.basePricePerNight && {
+          basePricePerNight: parseFloat(body.basePricePerNight),
+        }),
+        ...(body.regularPrice && {
+          regularPrice: parseFloat(body.regularPrice),
+        }),
+        ...(body.currency && { currency: body.currency }),
+        ...(body.isPartner !== undefined && { isPartner: body.isPartner }),
+        ...(body.promoMessage && { promoMessage: body.promoMessage }),
+        ...(body.imageMessage && { imageMessage: body.imageMessage }),
+        updatedAt: new Date(),
+      },
+      include: {
+        hotelDetails: { include: { address: { include: { city: true } } } },
+        hotelRoomType: true,
+        hostDashboard: true,
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (e) {
+    console.error("Failed to update hotel:", e);
+    return NextResponse.json(
+      { error: "Failed to update hotel" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Suppression d'un hôtel (sans contrôle des rôles)
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const hotelId = searchParams.get("id");
+
+    if (!hotelId)
+      return NextResponse.json({ error: "Hotel ID required" }, { status: 400 });
+
+    // Vérifier les réservations actives avant suppression
+    const activeReservations = await prisma.reservation.count({
+      where: {
+        hotelRoom: {
+          HotelDetails: {
+            HotelCard: { some: { id: hotelId } },
+          },
+        },
+        status: { in: ["confirmed", "checked_in"] },
+        checkOut: { gte: new Date() },
+      },
+    });
+
+    if (activeReservations > 0) {
       return NextResponse.json(
-        { error: "La ville spécifiée n'existe pas" },
+        { error: "Cannot delete hotel with active reservations" },
         { status: 400 }
       );
     }
 
-    // ✅ Validation des références optionnelles
-    if (body.accommodationTypeId) {
-      const accommodationTypeExists = await prisma.accommodationType.findUnique(
-        {
-          where: { id: body.accommodationTypeId },
-        }
-      );
+    await prisma.hotelCard.delete({ where: { id: hotelId } });
 
-      if (!accommodationTypeExists) {
-        return NextResponse.json(
-          { error: "Le type d'hébergement spécifié n'existe pas" },
-          { status: 400 }
-        );
-      }
-    }
-
-    if (body.destinationId) {
-      const destinationExists = await prisma.destination.findUnique({
-        where: { id: body.destinationId },
-      });
-
-      if (!destinationExists) {
-        return NextResponse.json(
-          { error: "La destination spécifiée n'existe pas" },
-          { status: 400 }
-        );
-      }
-    }
-
-    if (body.hotelGroupId) {
-      const hotelGroupExists = await prisma.hotelGroup.findUnique({
-        where: { id: body.hotelGroupId },
-      });
-
-      if (!hotelGroupExists) {
-        return NextResponse.json(
-          { error: "Le groupe hôtelier spécifié n'existe pas" },
-          { status: 400 }
-        );
-      }
-    }
-
-    if (body.hotelParkingId) {
-      const parkingExists = await prisma.hotelParking.findUnique({
-        where: { id: body.hotelParkingId },
-      });
-
-      if (!parkingExists) {
-        return NextResponse.json(
-          { error: "L'option de parking spécifiée n'existe pas" },
-          { status: 400 }
-        );
-      }
-    }
-
-    console.log("✅ [POST] Toutes les validations réussies");
-
-    // ✅ Création de l'hôtel avec les champs corrects selon votre nouveau schéma
-    const newHotel = await prisma.hotelCard.create({
-      data: {
-        // Champs obligatoires
-        name: body.name.trim(),
-        idCity: body.idCity,
-        starRating: parseInt(body.starRating),
-        basePricePerNight: parseFloat(body.basePricePerNight),
-
-        // Champs avec valeurs par défaut
-        order: body.order || 100,
-        currency: body.currency || "EUR",
-        reviewCount: parseInt(body.reviewCount) || 0,
-        isPartner: Boolean(body.isPartner),
-
-        // Champs optionnels avec nettoyage
-        shortDescription: body.shortDescription?.trim() || null,
-        overallRating: body.overallRating
-          ? parseFloat(body.overallRating)
-          : null,
-        ratingAdjective: body.ratingAdjective?.trim() || null,
-        regularPrice: body.regularPrice ? parseFloat(body.regularPrice) : null,
-        promoMessage: body.promoMessage?.trim() || null,
-        imageMessage: body.imageMessage?.trim() || null,
-        cancellationPolicy: body.cancellationPolicy?.trim() || null,
-
-        // Relations optionnelles
-        accommodationTypeId: body.accommodationTypeId || null,
-        destinationId: body.destinationId || null,
-        hotelGroupId: body.hotelGroupId || null,
-        hotelParkingId: body.hotelParkingId || null,
-
-        // Coordonnées GPS
-        latitude: body.latitude ? parseFloat(body.latitude) : null,
-        longitude: body.longitude ? parseFloat(body.longitude) : null,
-      },
-      include: {
-        accommodationType: true,
-        destination: {
-          include: {
-            DestinationToCity: {
-              include: {
-                city: {
-                  include: {
-                    country: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-        hotelGroup: true,
-        parking: true,
-        images: {
-          where: { imageCategories: "hotelCard" },
-          orderBy: { order: "asc" },
-          take: 5,
-        },
-        // ✅ Inclusions selon votre nouveau schéma
-        HotelFAQ: {
-          orderBy: { order: "asc" },
-        },
-        HotelPolicy: true,
-        _count: {
-          select: {
-            HotelReview: true,
-            UserWishList: true,
-            HotelDetails: true,
-            HotelRoomType: true,
-          },
-        },
-      },
-    });
-
-    console.log("✅ [POST] Hôtel créé avec succès:", newHotel.id);
-
-    // ✅ Enrichir avec les informations de ville
-    const city = await prisma.city.findUnique({
-      where: { id: newHotel.idCity },
-      include: {
-        country: true,
-        neighborhoods: true,
-      },
-    });
-
-    // ✅ Formater la réponse selon la structure attendue
-    const enrichedHotel = {
-      ...newHotel,
-      city,
-      destination: newHotel.destination
-        ? {
-            ...newHotel.destination,
-            cities:
-              newHotel.destination.DestinationToCity?.map((rel) => rel.city) ||
-              [],
-            DestinationToCity: undefined,
-          }
-        : null,
-      // ✅ Formatage des nouvelles propriétés
-      faqs: newHotel.HotelFAQ || [],
-      policies: newHotel.HotelPolicy || [],
-      // Suppression des relations intermédiaires
-      HotelFAQ: undefined,
-      HotelPolicy: undefined,
-    };
-
-    return NextResponse.json(enrichedHotel, { status: 201 });
-  } catch (error) {
-    console.error("❌ [POST] Erreur lors de la création:", error);
-
-    // ✅ Gestion spécifique des erreurs Prisma
-    if (error && typeof error === "object" && "code" in error) {
-      if (error.code === "P2002") {
-        return NextResponse.json(
-          { error: "Un hôtel avec ce nom existe déjà dans cette ville" },
-          { status: 409 }
-        );
-      }
-      if (error.code === "P2003") {
-        return NextResponse.json(
-          { error: "Référence invalide vers une entité liée" },
-          { status: 400 }
-        );
-      }
-    }
-
+    return NextResponse.json({ message: "Hotel deleted successfully" });
+  } catch (e) {
+    console.error("Failed to delete hotel:", e);
     return NextResponse.json(
-      {
-        error: "Erreur lors de la création de l'hôtel",
-        details: error instanceof Error ? error.message : "Erreur inconnue",
-      },
+      { error: "Failed to delete hotel" },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }

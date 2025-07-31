@@ -9,7 +9,7 @@ import {
   sortHotelsByPriceAsc,
   Hotel,
 } from "@/utils/getHotel";
-import HotelCard from "@/components/HotelCard/HotelCard";
+import HotelCard from "@/components/HotelCard/wHotelCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

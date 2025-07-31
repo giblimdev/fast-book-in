@@ -26,7 +26,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 country: true,
               },
             },
-            neighborhood: true,
           },
         },
         RoomAmenity: includeAll
@@ -63,7 +62,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
               orderBy: { order: "asc" },
             },
           },
-          orderBy: { name: "asc" },
         },
         HotelDetailsToRoomAmenity: {
           include: {
@@ -158,7 +156,6 @@ export async function PUT(request: NextRequest, context: RouteContext) {
                 country: true,
               },
             },
-            neighborhood: true,
           },
         },
       },
@@ -214,9 +211,9 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Vérifier s'il y a des entités dépendantes
+    // ✅ Vérification corrigée : HotelCard est un objet unique, pas un tableau
     const hasRelatedData =
-      existingHotelDetails.HotelCard.length > 0 ||
+      existingHotelDetails.HotelCard !== null ||
       existingHotelDetails.HotelDetailsToRoomAmenity.length > 0 ||
       existingHotelDetails.Label.length > 0 ||
       existingHotelDetails.RoomAmenity.length > 0;
@@ -226,7 +223,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         {
           error: "Cannot delete hotel details with associated data",
           details: {
-            hotelCards: existingHotelDetails.HotelCard.length,
+            hasHotelCard: existingHotelDetails.HotelCard !== null,
             roomAmenityLinks:
               existingHotelDetails.HotelDetailsToRoomAmenity.length,
             labels: existingHotelDetails.Label.length,

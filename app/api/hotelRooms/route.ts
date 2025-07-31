@@ -2,79 +2,114 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// GET /api/admin/rooms - Récupérer toutes les chambres (vue admin)
+// GET /api/admin/hotelRooms - Récupérer toutes les chambres (vue admin)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page = Number(searchParams.get("page")) || 1;
     const limit = Number(searchParams.get("limit")) || 20;
-    const sortBy = searchParams.get("sortBy") || "createdAt";
+    const sortBy = searchParams.get("sortBy") || "id";
     const order = searchParams.get("order") || "desc";
-    const hotelCardId = searchParams.get("hotelCardId");
-    const isAvailable = searchParams.get("available");
-    const maxGuests = searchParams.get("maxGuests");
-    const maxPrice = searchParams.get("maxPrice");
-    const minPrice = searchParams.get("minPrice");
-    const bedType = searchParams.get("bedType");
-    const search = searchParams.get("search");
+    const hotelDetailsId = searchParams.get("hotelDetailsId");
+    const slug = searchParams.get("slug");
     const includeRelations = searchParams.get("include") === "true";
 
     const skip = (page - 1) * limit;
 
-    // Construction de la clause WHERE
+    // ✅ Construction de la clause WHERE avec les vrais champs
     const whereClause: any = {};
-    if (hotelCardId) whereClause.hotelCardId = hotelCardId;
-    if (isAvailable === "true") whereClause.isAvailable = true;
-    if (isAvailable === "false") whereClause.isAvailable = false;
-    if (maxGuests) whereClause.maxGuests = { gte: Number(maxGuests) };
-    if (maxPrice)
-      whereClause.pricePerNight = {
-        ...whereClause.pricePerNight,
-        lte: Number(maxPrice),
-      };
-    if (minPrice)
-      whereClause.pricePerNight = {
-        ...whereClause.pricePerNight,
-        gte: Number(minPrice),
-      };
-    if (bedType)
-      whereClause.bedType = { contains: bedType, mode: "insensitive" };
+    if (hotelDetailsId) whereClause.hotelDetailsId = hotelDetailsId;
+    if (slug) whereClause.slug = { contains: slug, mode: "insensitive" };
 
-    if (search) {
-      whereClause.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-        { bedType: { contains: search, mode: "insensitive" } },
-      ];
-    }
+    // ✅ Tri seulement sur les champs existants
+    const validSortFields = ["id", "slug", "hotelDetailsId"];
+    const finalSortBy = validSortFields.includes(sortBy) ? sortBy : "id";
 
     const rooms = await prisma.hotelRoom.findMany({
       where: whereClause,
-      orderBy: { [sortBy]: order as "asc" | "desc" },
+      orderBy: { [finalSortBy]: order as "asc" | "desc" },
       skip,
       take: limit,
       include: includeRelations
         ? {
-            hotelCard: {
-              select: {
-                id: true,
-                name: true,
-                starRating: true,
-                accommodationType: {
-                  select: { name: true },
+            reservations: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
                 },
-                destination: {
-                  select: { name: true },
+              },
+              orderBy: { checkIn: "desc" },
+              take: 5,
+            },
+            availability: {
+              where: {
+                date: {
+                  gte: new Date(),
+                },
+              },
+              orderBy: { date: "asc" },
+              take: 30,
+            },
+            RoomUnavailability: {
+              where: {
+                endDate: {
+                  gte: new Date(),
+                },
+              },
+              orderBy: { startDate: "asc" },
+            },
+            HotelDetails: {
+              include: {
+                address: {
+                  include: {
+                    city: {
+                      include: {
+                        country: true,
+                      },
+                    },
+                  },
+                },
+                HotelCard: {
+                  select: {
+                    id: true,
+                    name: true,
+                    starRating: true,
+                    accommodationType: {
+                      select: { name: true },
+                    },
+                    destination: {
+                      include: {
+                        DestinationToCity: {
+                          include: {
+                            city: {
+                              include: {
+                                country: true,
+                              },
+                            },
+                          },
+                        },
+                      },
+                      select: { name: true },
+                    },
+                  },
                 },
               },
             },
           }
         : {
-            hotelCard: {
-              select: {
-                id: true,
-                name: true,
-                starRating: true,
+            HotelDetails: {
+              include: {
+                HotelCard: {
+                  select: {
+                    id: true,
+                    name: true,
+                    starRating: true,
+                  },
+                },
               },
             },
           },
@@ -83,17 +118,28 @@ export async function GET(request: NextRequest) {
     // Comptage total
     const total = await prisma.hotelRoom.count({ where: whereClause });
 
-    // Statistiques
-    const stats = await prisma.hotelRoom.aggregate({
-      _avg: { pricePerNight: true, maxGuests: true, roomSize: true },
+    // ✅ Statistiques basées sur les vraies relations
+    const reservationStats = await prisma.reservation.aggregate({
+      where: {
+        hotelRoom: {
+          ...whereClause,
+        },
+      },
       _count: { id: true },
-      _min: { pricePerNight: true },
-      _max: { pricePerNight: true },
+      _avg: { totalPrice: true },
     });
 
-    // Statistiques de disponibilité
-    const availabilityStats = await prisma.hotelRoom.groupBy({
+    // Statistiques de disponibilité future
+    const availabilityStats = await prisma.calendarAvailability.groupBy({
       by: ["isAvailable"],
+      where: {
+        hotelRoom: {
+          ...whereClause,
+        },
+        date: {
+          gte: new Date(),
+        },
+      },
       _count: { isAvailable: true },
     });
 
@@ -108,12 +154,9 @@ export async function GET(request: NextRequest) {
         hasPrevPage: page > 1,
       },
       statistics: {
-        total: stats._count.id,
-        averagePrice: stats._avg.pricePerNight || 0,
-        averageGuests: stats._avg.maxGuests || 0,
-        averageSize: stats._avg.roomSize || 0,
-        minPrice: stats._min.pricePerNight || 0,
-        maxPrice: stats._max.pricePerNight || 0,
+        total,
+        totalReservations: reservationStats._count.id || 0,
+        averageReservationPrice: reservationStats._avg.totalPrice || 0,
         availability: {
           available:
             availabilityStats.find((s) => s.isAvailable)?._count.isAvailable ||
@@ -133,92 +176,67 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/admin/rooms - Créer une nouvelle chambre (admin)
+// POST /api/admin/hotelRooms - Créer une nouvelle chambre (admin)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      hotelCardId,
-      name,
-      description,
-      maxGuests,
-      bedCount,
-      bedType,
-      roomSize,
-      pricePerNight,
-      currency,
-      isAvailable,
-      images,
-    } = body;
+    const { hotelDetailsId, slug } = body;
 
-    // Validation basique
-    if (
-      !hotelCardId ||
-      !name ||
-      !maxGuests ||
-      !bedCount ||
-      !bedType ||
-      !pricePerNight
-    ) {
+    // ✅ Validation basique selon le vrai schéma
+    if (!hotelDetailsId) {
       return NextResponse.json(
-        {
-          error:
-            "Hotel ID, name, maxGuests, bedCount, bedType and pricePerNight are required",
+        { error: "hotelDetailsId is required" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Vérifier si les détails d'hôtel existent
+    const hotelDetailsExists = await prisma.hotelDetails.findUnique({
+      where: { id: hotelDetailsId },
+      include: {
+        HotelCard: {
+          select: { id: true, name: true },
         },
-        { status: 400 }
-      );
-    }
-
-    // Validation des nombres
-    if (maxGuests < 1 || bedCount < 1 || pricePerNight < 0) {
-      return NextResponse.json(
-        {
-          error:
-            "Invalid numeric values: maxGuests and bedCount must be >= 1, pricePerNight must be >= 0",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validation de la taille si fournie
-    if (roomSize && roomSize <= 0) {
-      return NextResponse.json(
-        { error: "Room size must be greater than 0" },
-        { status: 400 }
-      );
-    }
-
-    // Vérifier si l'hôtel existe
-    const hotelExists = await prisma.hotelCard.findUnique({
-      where: { id: hotelCardId },
-      select: { id: true, name: true },
+      },
     });
 
-    if (!hotelExists) {
-      return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
+    if (!hotelDetailsExists) {
+      return NextResponse.json(
+        { error: "Hotel details not found" },
+        { status: 404 }
+      );
     }
 
-    // Créer la chambre
+    // ✅ Vérifier l'unicité du slug si fourni
+    if (slug) {
+      const existingSlug = await prisma.hotelRoom.findFirst({
+        where: { slug },
+      });
+
+      if (existingSlug) {
+        return NextResponse.json(
+          { error: "Room with this slug already exists" },
+          { status: 409 }
+        );
+      }
+    }
+
+    // ✅ Créer la chambre avec les vrais champs
     const room = await prisma.hotelRoom.create({
       data: {
-        hotelCardId,
-        name,
-        description,
-        maxGuests: Number(maxGuests),
-        bedCount: Number(bedCount),
-        bedType,
-        roomSize: roomSize ? Number(roomSize) : null,
-        pricePerNight: Number(pricePerNight),
-        currency: currency || "EUR",
-        isAvailable: Boolean(isAvailable !== false), // Default true
-        images: images || [],
+        hotelDetailsId,
+        slug: slug || null,
       },
       include: {
-        hotelCard: {
-          select: {
-            id: true,
-            name: true,
-            starRating: true,
+        HotelDetails: {
+          include: {
+            HotelCard: {
+              select: {
+                id: true,
+                name: true,
+                starRating: true,
+              },
+            },
           },
         },
       },
@@ -229,9 +247,15 @@ export async function POST(request: NextRequest) {
     console.error("Error creating room:", error);
     // Gestion des erreurs Prisma
     if (error && typeof error === "object" && "code" in error) {
+      if (error.code === "P2002") {
+        return NextResponse.json(
+          { error: "Room with this slug already exists" },
+          { status: 409 }
+        );
+      }
       if (error.code === "P2003") {
         return NextResponse.json(
-          { error: "Invalid hotel reference" },
+          { error: "Invalid hotel details reference" },
           { status: 400 }
         );
       }

@@ -51,7 +51,50 @@ export default function DevDashboard() {
           </p>
         </section>
       </main>
-
+      <div>
+        <p>
+          <Link href="https://www.theorangestudio.com/">
+            https://www.theorangestudio.com/
+          </Link>
+        </p>
+        Revenue Hub
+        <p>
+          <Link href="https://revenue-hub.com/">https://revenue-hub.com/</Link>
+        </p>
+        Little Hotelier{" "}
+        <p>
+          <Link href="https://www.littlehotelier.com/">
+            https://www.littlehotelier.com/
+          </Link>
+        </p>
+        lodgify{" "}
+        <p>
+          <Link href="https://www.lodgify.com/fr/">
+            https://www.lodgify.com/fr/
+          </Link>
+        </p>
+        futurelog{" "}
+        <p>
+          <Link href="https://www.futurelog.com/">
+            https://www.futurelog.com/
+          </Link>
+        </p>
+        <p>
+          <Link href="https://www.siteminder.com/fr/">
+            https://www.siteminder.com/fr/
+          </Link>
+        </p>
+        <p>
+          <Link href="https://www.travelperk.com/">
+            https://www.travelperk.com/
+          </Link>
+        </p>
+        <p>
+          <Link href="https://hoteltechreport.com/fr">
+            https://hoteltechreport.com/fr
+          </Link>
+        </p>
+      </div>
       <footer className="mt-12 pt-4 border-t border-gray-200 text-sm text-gray-500">
         <p>© {new Date().getFullYear()} - Tableau de bord de développement</p>
       </footer>

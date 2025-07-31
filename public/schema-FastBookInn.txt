@@ -335,6 +335,8 @@ model Address {
   postalCode     String
   cityId         String
   neighborhoodId String?
+  latitude       Float? // GPS latitude
+  longitude      Float? // GPS longitude
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   city           City           @relation(fields: [cityId], references: [id], onDelete: Cascade)
@@ -348,7 +350,7 @@ model Address {
 model GalleryImage {
   id String @id @default(uuid())
 
-  imageCategories String // destinationType  city country neighborhood hotelCard hotelRoom typelandmark
+  imageCategories String //   city country neighborhood hotelCard hotelRoom typelandmark
   order           Int            @default(20)
   alt             String?
   createdAt       DateTime       @default(now())
@@ -384,60 +386,55 @@ model Image {
 }
 
 model HotelCard {
-  id                             String                           @id @default(uuid())
-  name                           String
-  idCity                         String
-  order                          Int                              @default(20)
-  shortDescription               String?
-  starRating                     Int
-  overallRating                  Float?
-  ratingAdjective                String?
-  reviewCount                    Int                              @default(0)
-  basePricePerNight              Float
-  regularPrice                   Float?
-  currency                       String                           @default("EUR")
-  isPartner                      Boolean                          @default(false)
-  promoMessage                   String?
-  imageMessage                   String?
-  cancellationPolicy             String?
-  accommodationTypeId            String?
-  destinationId                  String?
-  hotelGroupId                   String?
+  id             String  @id @default(uuid())
+  hotelDetailsId String?
+
+  name             String
+  idCity           String
+  order            Int     @default(20)
+  shortDescription String?
+  starRating       Int? // Classement en étoiles definis par l'host
+  overallRating    Float? // Note moyenne des avis 
+  ratingAdjective  String? // en fonction de overallRating
+  reviewCount      Int     @default(0)
+
+  basePricePerNight Float
+  regularPrice      Float?
+  currency          String @default("EUR")
+
+  images GalleryImage[]
+
+  isPartner    Boolean @default(false)
+  imageMessage String?
+
+  hotelGroupId   String?
+  hotelParkingId String?
+  hotelAmenity   HotelAmenity[]
+
+  destination       Destination[]
+  accommodationType AccommodationType[]
+  hotelGroup        HotelGroup?         @relation(fields: [hotelGroupId], references: [id], onDelete: SetNull)
+  hotelRoomType     HotelRoomType[]
+  hotelFAQ          HotelFAQ[]
+  hotelPolicy       HotelPolicy[]
+  hotelReview       HotelReview[]
+  userWishList      UserWishList[]
+  hostDashboard     HostDashboard[]
+
+  travelerRecommendation TravelerRecommendation[]
+
+  hotelDetails                   HotelDetails?                    @relation(fields: [hotelDetailsId], references: [id])
   parking                        HotelParking?                    @relation(fields: [hotelParkingId], references: [id])
-  images                         GalleryImage[]
-  latitude                       Float? // GPS latitude
-  longitude                      Float? // GPS longitude
-  HotelAmenity                   HotelAmenity[]
-  detailsId                      String?
-  accommodationType              AccommodationType?               @relation(fields: [accommodationTypeId], references: [id], onDelete: SetNull)
-  destination                    Destination?                     @relation(fields: [destinationId], references: [id], onDelete: SetNull)
-  hotelGroup                     HotelGroup?                      @relation(fields: [hotelGroupId], references: [id], onDelete: SetNull)
-  HotelCardToHotelHighlight      HotelCardToHotelHighlight[]
-  HotelCardToLabel               HotelCardToLabel[]
-  HotelCardToAccessibilityOption HotelCardToAccessibilityOption[]
-  HotelCardToHotelAmenity        HotelCardToHotelAmenity[]
+  hotelCardToHotelHighlight      HotelCardToHotelHighlight[]
+  hotelCardToLabel               HotelCardToLabel[]
+  hotelCardToAccessibilityOption HotelCardToAccessibilityOption[]
+  hotelCardToHotelAmenity        HotelCardToHotelAmenity[]
 
-  HotelFAQ HotelFAQ[]
-
-  HotelPolicy HotelPolicy[]
-
-  HotelRoomType HotelRoomType[]
-
-  HotelReview HotelReview[]
-
-  UserWishList UserWishList[]
-
-  HotelierDashboard HostDashboard[]
-
-  HotelDetails HotelDetails[]
-
-  TravelerRecommendation TravelerRecommendation[]
-  hotelParkingId         String?
+  @@map("hotelCard")
 }
 
 model HotelDetails {
   id             String   @id @default(uuid())
-  idHotelCard    String
   description    String?
   addressId      String
   order          Int?     @default(20)
@@ -451,12 +448,12 @@ model HotelDetails {
 
   address Address @relation(fields: [addressId], references: [id], onDelete: Cascade)
 
-  RoomAmenity               RoomAmenity[]
-  Label                     Label[]
-  HotelCard                 HotelCard?                  @relation(fields: [HotelCardid], references: [id])
-  HotelCardid               String?
-  HotelDetailsToRoomAmenity HotelDetailsToRoomAmenity[]
+  roomAmenity               RoomAmenity[]
+  label                     Label[]
+  hotelCardid               String?
+  hotelDetailsToRoomAmenity HotelDetailsToRoomAmenity[]
   room                      HotelRoom[]
+  HotelCard                 HotelCard[]
 
   @@map("hotel_details")
 }
@@ -481,7 +478,7 @@ model HotelRoomType {
   CancellationPolicy CancellationPolicy[]
   RoomUnavailability RoomUnavailability[]
 
-  @@map("hotel_rooms")
+  @@map("hotelRoomType")
 }
 
 model HotelRoom {
@@ -495,6 +492,8 @@ model HotelRoom {
   HotelDetails       HotelDetails?        @relation(fields: [hotelDetailsId], references: [id])
   hotelDetailsId     String?
   RoomUnavailability RoomUnavailability[]
+
+  @@map("hotelRoom")
 }
 
 //////////////////////////

@@ -74,7 +74,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       priority,
       order,
       isPromoted,
-      hotelId,
+      hotelId, // ✅ Gardé car le champ existe dans le schéma
     } = body;
 
     // Vérifier si le highlight existe
@@ -105,7 +105,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         );
       }
 
-      // Vérifier l'unicité du titre (exclure le highlight actuel)
+      // ✅ Vérification d'unicité corrigée
       const existingTitle = await prisma.hotelHighlight.findFirst({
         where: {
           title: {
@@ -129,6 +129,18 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           },
           { status: 409 }
         );
+      }
+    }
+
+    // ✅ Validation de l'existence du hotelId si fourni
+    if (hotelId && hotelId !== existingHighlight.hotelId) {
+      const hotelExists = await prisma.hotelCard.findUnique({
+        where: { id: hotelId },
+        select: { id: true },
+      });
+
+      if (!hotelExists) {
+        return NextResponse.json({ error: "Hotel not found" }, { status: 404 });
       }
     }
 
@@ -290,6 +302,14 @@ function handlePrismaError(error: any) {
             prismaError: error.code,
           },
           { status: 404 }
+        );
+      case "P2003":
+        return NextResponse.json(
+          {
+            error: "Invalid hotel reference",
+            prismaError: error.code,
+          },
+          { status: 400 }
         );
       default:
         console.error("Unhandled Prisma error:", error);

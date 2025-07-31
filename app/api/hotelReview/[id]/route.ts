@@ -39,6 +39,18 @@ export async function GET(request: NextRequest, context: RouteContext) {
                   select: { name: true, category: true },
                 },
                 destination: {
+                  include: {
+                    // ✅ Corrigé : Utilisation de la relation many-to-many
+                    DestinationToCity: {
+                      include: {
+                        city: {
+                          include: {
+                            country: true,
+                          },
+                        },
+                      },
+                    },
+                  },
                   select: { name: true, type: true },
                 },
                 hotelGroup: {
@@ -46,7 +58,44 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 },
                 images: {
                   take: 3,
-                  select: { imageUrl: true, alt: true },
+                  include: {
+                    // ✅ Corrigé : Structure des images selon votre schéma
+                    image: {
+                      select: {
+                        path: true,
+                        description: true,
+                      },
+                    },
+                  },
+                  select: {
+                    alt: true,
+                    order: true,
+                  },
+                },
+              },
+            },
+            // ✅ Ajout des réponses si c'est un avis parent
+            replies: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                  },
+                },
+              },
+              orderBy: { createdAt: "asc" },
+            },
+            // ✅ Ajout du parent si c'est une réponse
+            parent: {
+              select: {
+                id: true,
+                title: true,
+                user: {
+                  select: {
+                    name: true,
+                  },
                 },
               },
             },
@@ -105,15 +154,30 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     // Vérifier si l'avis existe
     const existingReview = await prisma.hotelReview.findUnique({
       where: { id },
-      select: { hotelCardId: true },
+      select: {
+        hotelCardId: true,
+        parentId: true, // ✅ Ajouté pour vérifier si c'est une réponse
+      },
     });
 
     if (!existingReview) {
       return NextResponse.json({ error: "Review not found" }, { status: 404 });
     }
 
-    // Validation du rating si fourni
-    if (rating !== undefined && (rating < 1 || rating > 5)) {
+    // ✅ Validation spécifique pour les réponses
+    if (existingReview.parentId && rating !== undefined) {
+      return NextResponse.json(
+        { error: "Replies cannot have ratings" },
+        { status: 400 }
+      );
+    }
+
+    // Validation du rating si fourni (seulement pour les avis principaux)
+    if (
+      rating !== undefined &&
+      !existingReview.parentId &&
+      (rating < 1 || rating > 5)
+    ) {
       return NextResponse.json(
         { error: "Rating must be between 1 and 5" },
         { status: 400 }
@@ -128,11 +192,28 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
+    // ✅ Validation des arrays
+    if (pros !== undefined && !Array.isArray(pros)) {
+      return NextResponse.json(
+        { error: "Pros must be an array of strings" },
+        { status: 400 }
+      );
+    }
+
+    if (cons !== undefined && !Array.isArray(cons)) {
+      return NextResponse.json(
+        { error: "Cons must be an array of strings" },
+        { status: 400 }
+      );
+    }
+
     // Mettre à jour l'avis
     const updatedReview = await prisma.hotelReview.update({
       where: { id },
       data: {
-        ...(rating !== undefined && { rating: Number(rating) }),
+        // ✅ Rating seulement pour les avis principaux
+        ...(rating !== undefined &&
+          !existingReview.parentId && { rating: Number(rating) }),
         ...(title !== undefined && { title }),
         ...(comment && { comment }),
         ...(pros !== undefined && { pros }),
@@ -165,10 +246,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       },
     });
 
-    // Recalculer les statistiques si la note a changé
-    if (rating !== undefined) {
+    // ✅ Recalculer les statistiques seulement si la note d'un avis principal a changé
+    if (rating !== undefined && !existingReview.parentId) {
       const hotelStats = await prisma.hotelReview.aggregate({
-        where: { hotelCardId: existingReview.hotelCardId },
+        where: {
+          hotelCardId: existingReview.hotelCardId,
+          parentId: null, // ✅ Seulement les avis principaux
+          rating: { not: null }, // ✅ Seulement les avis avec rating
+        },
         _avg: { rating: true },
         _count: { rating: true },
       });
@@ -210,11 +295,30 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     // Vérifier si l'avis existe et récupérer les informations nécessaires
     const existingReview = await prisma.hotelReview.findUnique({
       where: { id },
-      select: { hotelCardId: true },
+      select: {
+        hotelCardId: true,
+        parentId: true,
+        _count: {
+          select: {
+            replies: true, // ✅ Compter les réponses
+          },
+        },
+      },
     });
 
     if (!existingReview) {
       return NextResponse.json({ error: "Review not found" }, { status: 404 });
+    }
+
+    // ✅ Vérifier s'il y a des réponses
+    if (existingReview._count.replies > 0) {
+      return NextResponse.json(
+        {
+          error: "Cannot delete review with replies. Delete replies first.",
+          repliesCount: existingReview._count.replies,
+        },
+        { status: 409 }
+      );
     }
 
     // Supprimer l'avis
@@ -222,20 +326,26 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       where: { id },
     });
 
-    // Recalculer les statistiques de l'hôtel
-    const hotelStats = await prisma.hotelReview.aggregate({
-      where: { hotelCardId: existingReview.hotelCardId },
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
+    // ✅ Recalculer les statistiques seulement si c'était un avis principal
+    if (!existingReview.parentId) {
+      const hotelStats = await prisma.hotelReview.aggregate({
+        where: {
+          hotelCardId: existingReview.hotelCardId,
+          parentId: null, // ✅ Seulement les avis principaux
+          rating: { not: null }, // ✅ Seulement les avis avec rating
+        },
+        _avg: { rating: true },
+        _count: { rating: true },
+      });
 
-    await prisma.hotelCard.update({
-      where: { id: existingReview.hotelCardId },
-      data: {
-        overallRating: hotelStats._avg.rating || null,
-        reviewCount: hotelStats._count.rating,
-      },
-    });
+      await prisma.hotelCard.update({
+        where: { id: existingReview.hotelCardId },
+        data: {
+          overallRating: hotelStats._avg.rating || null,
+          reviewCount: hotelStats._count.rating,
+        },
+      });
+    }
 
     return NextResponse.json(
       { message: "Review deleted successfully" },

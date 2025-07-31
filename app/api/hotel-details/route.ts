@@ -25,7 +25,6 @@ export async function GET(request: NextRequest) {
                     country: true,
                   },
                 },
-                neighborhood: true,
               },
             },
             RoomAmenity: {
@@ -43,7 +42,7 @@ export async function GET(request: NextRequest) {
                 basePricePerNight: true,
                 currency: true,
               },
-              orderBy: { name: "asc" },
+              // ✅ Supprimé orderBy car HotelCard est une relation one-to-one
             },
             HotelDetailsToRoomAmenity: {
               include: {
@@ -60,7 +59,7 @@ export async function GET(request: NextRequest) {
                     country: true,
                   },
                 },
-                neighborhood: true,
+                // ✅ Supprimé neighborhood (n'existe plus dans le schéma)
               },
             },
           },
@@ -99,7 +98,7 @@ export async function POST(request: NextRequest) {
             country: true,
           },
         },
-        neighborhood: true,
+        // ✅ Supprimé neighborhood (n'existe plus dans le schéma)
       },
     });
 
@@ -134,7 +133,7 @@ export async function POST(request: NextRequest) {
                 country: true,
               },
             },
-            neighborhood: true,
+            // ✅ Supprimé neighborhood (n'existe plus dans le schéma)
           },
         },
       },

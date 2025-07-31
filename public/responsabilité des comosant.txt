@@ -1,0 +1,10 @@
+Composant	Champs Prisma gérés/édités dans le store
+HotelBasicInfo	HotelCard.name, idCity, order, shortDescription, starRating, overallRating, ratingAdjective, reviewCount, basePricePerNight, regularPrice, currency, isPartner, promoMessage, imageMessage, cancellationPolicy, accommodationTypeId, destinationId, hotelGroupId, hotelParkingId
+HotelAdress	Address.name, streetNumber, streetType, streetName, addressLine2, postalCode, cityId, neighborhoodId, latitude, longitude
+HotelGallery	GalleryImage[] : imageCategories, order, alt...
+HotelDetails	HotelDetails.description, checkInTime, checkOutTime, numberOfRooms, numberOfFloors, languages
+HotelFeatures	HotelFeaturesData.selectedAmenities, selectedLabels, selectedAccessibilityOptions, selectedHighlights
+HotelRoomTypes	roomTypes[] : name, images, description, maxGuests, bedCount, bedType, roomSize, pricePerNight, currency, isAvailable
+HotelRoomFeatures	roomFeaturesData.selectedAmenities (équipements par type de chambre)
+RoomGallery	GalleryImage liées à chaque RoomTypeData
+HotelCardPreview	Affichage de toutes les données du store sous forme visuelle professionnelle

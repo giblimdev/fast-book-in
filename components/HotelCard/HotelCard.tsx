@@ -1,254 +1,213 @@
 // components/HotelCard/HotelCard.tsx
+// Card hôtel premium, 3 sections, responsive, bouton Réserver centré, boutons secondaires Favoris/Carte parfaitement responsives
+
 import React from "react";
-import { Hotel } from "@/utils/getHotel";
-import {
-  Star,
-  MapPin,
-  Wifi,
-  Car,
-  Heart,
-  Check,
-  Coffee,
-  Utensils,
-  Dumbbell,
-  Waves,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import Image from "next/image";
+import { Card, CardContent } from "../ui/card";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Star, MapPin, Check, Heart, Map } from "lucide-react";
 
-interface HotelCardProps {
-  hotel: Hotel;
-}
-
-export default function HotelCard({ hotel }: HotelCardProps) {
-  const discountAmount = hotel.regularPrice
-    ? hotel.regularPrice - hotel.basePricePerNight
-    : 0;
-
-  const discountPercentage = hotel.regularPrice
-    ? Math.round(
-        ((hotel.regularPrice - hotel.basePricePerNight) / hotel.regularPrice) *
-          100
-      )
-    : 0;
-
-  const renderStars = (rating: number) => {
-    return (
-      <div className="flex items-center gap-1">
-        {[...Array(5)].map((_, index) => (
-          <Star
-            key={index}
-            className={`w-4 h-4 ${
-              index < rating
-                ? "fill-yellow-400 text-yellow-400"
-                : "text-gray-300"
-            }`}
-          />
-        ))}
-      </div>
-    );
+type HotelCardProps = {
+  hotel: {
+    name: string;
+    starRating: number;
+    overallRating?: number | null;
+    ratingAdjective?: string | null;
+    reviewCount?: number;
+    basePricePerNight: number;
+    regularPrice?: number | null;
+    currency: string;
+    shortDescription?: string | null;
+    isPartner?: boolean;
+    promoMessage?: string | null;
+    imageMessage?: string | null;
+    cancellationPolicy?: string | null;
+    city?: string;
+    country?: string;
+    mainImage?: string;
   };
+};
 
-  const renderAmenityIcon = (amenity: { name: string; icon?: string }) => {
-    const amenityLower = amenity.name.toLowerCase();
-    if (amenityLower.includes("wifi"))
-      return <Wifi className="w-4 h-4 text-blue-600" />;
-    if (amenityLower.includes("parking") || amenityLower.includes("car"))
-      return <Car className="w-4 h-4 text-gray-600" />;
-    if (amenityLower.includes("restaurant") || amenityLower.includes("food"))
-      return <Utensils className="w-4 h-4 text-orange-600" />;
-    if (amenityLower.includes("gym") || amenityLower.includes("fitness"))
-      return <Dumbbell className="w-4 h-4 text-red-600" />;
-    if (amenityLower.includes("pool") || amenityLower.includes("piscine"))
-      return <Waves className="w-4 h-4 text-blue-500" />;
-    if (amenityLower.includes("coffee") || amenityLower.includes("café"))
-      return <Coffee className="w-4 h-4 text-brown-600" />;
-    return <Check className="w-4 h-4 text-green-600" />;
-  };
-
-  // Image principale selon le schéma
-  const mainImage =
-    hotel.images?.find((img) => img.order === 1)?.imageUrl ||
-    hotel.images?.[0]?.imageUrl ||
-    hotel.main_image_url ||
-    "";
-
+export default function HotelCard({
+  hotel,
+}: {
+  hotel: HotelCardProps["hotel"];
+}) {
   return (
-    <div className="flex flex-col md:flex-row bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden border border-gray-200">
-      {/* Section Image */}
-      <section className="hidden md:block md:w-1/3 relative">
-        <div className="relative h-full min-h-[200px]">
-          <Image
-            src={mainImage}
-            alt={hotel.name}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 0px, (max-width: 1200px) 33vw, 25vw"
-          />
-          {hotel.imageMessage && (
-            <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-xs font-semibold">
-              {hotel.imageMessage}
-            </div>
-          )}
-          <button className="absolute top-2 right-2 p-1.5 bg-white/90 rounded-full hover:bg-white shadow-sm">
-            <Heart className="w-4 h-4 text-gray-600 hover:text-red-500 hover:fill-red-500 transition-colors" />
-          </button>
-        </div>
-      </section>
+    <Card className="relative w-full rounded-xl shadow-xl overflow-hidden bg-white flex flex-col md:flex-row transition hover:shadow-2xl">
+      {/* SECTION 1 : IMAGE GAUCHE */}
+      <div
+        className="relative w-full md:w-[42%] aspect-[4/3] md:aspect-auto min-h-[180px] md:min-h-[230px] bg-gray-100 flex-shrink-0"
+        style={{
+          borderTopLeftRadius: "1.25rem",
+          borderBottomLeftRadius: "1.25rem",
+          borderTopRightRadius: "0.75rem",
+          borderBottomRightRadius: "0.75rem",
+        }}
+      >
+        <img
+          src={hotel.mainImage || "/placeholder-hotel.jpg"}
+          alt={hotel.name}
+          className="object-cover w-full h-full rounded-t-xl md:rounded-tl-xl md:rounded-bl-xl md:rounded-tr-none"
+        />
+        {hotel.isPartner && (
+          <Badge className="absolute top-3 left-3 bg-indigo-700/90 text-white rounded-md px-3 py-1 shadow font-medium">
+            Partenaire
+          </Badge>
+        )}
+        {hotel.promoMessage && (
+          <Badge className="absolute top-3 right-3 bg-amber-600 text-white rounded-md px-3 py-1 shadow font-medium">
+            {hotel.promoMessage}
+          </Badge>
+        )}
+        {hotel.imageMessage && (
+          <div className="absolute bottom-3 left-3 bg-black/60 text-white px-2 py-1 text-xs rounded">
+            {hotel.imageMessage}
+          </div>
+        )}
+      </div>
 
-      {/* Section Informations principales */}
-      <section className="flex-1 p-4 md:p-6">
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          {hotel.hotelGroup?.name && (
-            <Badge
-              variant="outline"
-              className="text-xs text-blue-700 border-blue-200"
-            >
-              {hotel.hotelGroup.name}
-            </Badge>
-          )}
-          {hotel.labels?.map((label) => (
-            <Badge
-              key={label.id}
-              variant="secondary"
-              className={`text-xs ${
-                label.color === "green"
-                  ? "bg-green-100 text-green-800"
-                  : label.color === "purple"
-                  ? "bg-purple-100 text-purple-800"
-                  : label.color === "gold"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : "bg-gray-100 text-gray-800"
-              }`}
-            >
-              {label.name}
-            </Badge>
-          ))}
-          {hotel.isPartner && (
-            <Badge className="text-xs bg-purple-100 text-purple-800">
-              Partenaire
-            </Badge>
-          )}
-        </div>
-
-        <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-2 line-clamp-2">
-          {hotel.name}
-        </h3>
-
-        <div className="mb-2">{renderStars(hotel.starRating)}</div>
-
-        <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-          <div className="flex items-center gap-1">
-            <MapPin className="w-4 h-4" />
-            <span className="font-medium">
-              {hotel.destination?.name || hotel.neighborhood}
+      {/* SECTION 2 : INFOS CENTRALES */}
+      <CardContent className="md:w-[38%] w-full flex flex-col py-6 px-5 gap-2 justify-between">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            {/* Note globale */}
+            {hotel.overallRating != null && (
+              <span className="bg-blue-700 text-white font-extrabold rounded-xl px-2 py-1 text-base text-center shadow min-w-[48px]">
+                {hotel.overallRating.toFixed(1)}
+              </span>
+            )}
+            {/* Titre + étoiles */}
+            <span className="font-bold text-lg truncate text-gray-900">
+              {hotel.name}
+            </span>
+            {/* Favoris cœur côté titre seulement sur desktop */}
+            <span className="hidden md:inline ml-auto">
+              <button
+                aria-label="Ajouter aux favoris"
+                className="hover:bg-red-50 rounded-full p-1 border border-gray-200 transition"
+                title="Ajouter aux favoris"
+                type="button"
+              >
+                <Heart className="w-5 h-5 text-rose-500" strokeWidth={2} />
+              </button>
             </span>
           </div>
-          {hotel.distance_centre && (
-            <span className="text-gray-500">{hotel.distance_centre}</span>
-          )}
-        </div>
-
-        {hotel.amenities && hotel.amenities.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            {hotel.amenities.slice(0, 4).map((amenity) => (
-              <div
-                key={amenity.id}
-                className="flex items-center gap-1 text-xs text-gray-600"
-              >
-                {renderAmenityIcon(amenity)}
-                <span className="hidden sm:inline">{amenity.name}</span>
-              </div>
+          {/* Étoiles */}
+          <div className="flex gap-0.5 items-center mt-1">
+            {[...Array(hotel.starRating)].map((_, i) => (
+              <Star
+                key={i}
+                className="w-4 h-4 text-yellow-400 fill-yellow-400 inline"
+                aria-label="Étoile"
+              />
             ))}
-          </div>
-        )}
-
-        <p className="text-sm text-gray-700 mb-2 line-clamp-2">
-          {hotel.shortDescription}
-        </p>
-
-        {hotel.highlights && hotel.highlights.length > 0 && (
-          <p className="text-xs text-blue-600 font-medium line-clamp-1">
-            {hotel.highlights.map((h) => h.title).join(" • ")}
-          </p>
-        )}
-      </section>
-
-      {/* Section Prix et réservation */}
-      <section className="w-full md:w-80 p-4 md:p-6 bg-gray-50 md:bg-white border-t md:border-t-0 md:border-l border-gray-200">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="bg-blue-600 text-white px-2 py-1 rounded text-sm font-bold">
-                {hotel.overallRating?.toFixed(1)}
-              </span>
-              <span className="text-sm font-semibold text-gray-900">
+            {hotel.ratingAdjective && (
+              <span className="text-xs text-gray-600 ml-2">
                 {hotel.ratingAdjective}
               </span>
-              <p className="text-xs text-gray-600">
-                {hotel.reviewCount} avis vérifiés
-              </p>
-            </div>
+            )}
+            {typeof hotel.reviewCount === "number" && (
+              <span className="text-xs text-gray-400 ml-1">
+                ({hotel.reviewCount} avis)
+              </span>
+            )}
           </div>
-        </div>
-
-        {hotel.promoMessage && (
-          <div className="bg-yellow-100 border border-yellow-300 rounded p-2 mb-3">
-            <p className="text-xs text-yellow-800 font-medium">
-              {hotel.promoMessage}
-            </p>
+          {/* Localisation */}
+          <div className="flex items-center gap-1 mt-2 text-sm text-gray-500">
+            <MapPin className="w-4 h-4" />
+            <span className="truncate">
+              {[hotel.city, hotel.country].filter(Boolean).join(" • ")}
+            </span>
+            <span className="hidden md:inline">
+              <button
+                aria-label="Voir sur la carte"
+                className="ml-2 hover:bg-sky-50 rounded-full p-1 border border-gray-200 transition"
+                title="Voir sur la carte"
+                type="button"
+              >
+                <Map className="w-5 h-5 text-sky-700" strokeWidth={2} />
+              </button>
+            </span>
           </div>
-        )}
-
-        <div className="text-right mb-3">
-          {hotel.regularPrice && (
-            <div className="text-sm text-gray-500 line-through">
-              {hotel.regularPrice}{" "}
-              {hotel.currency === "EUR" ? "€" : hotel.currency}
+          {/* Description */}
+          {hotel.shortDescription && (
+            <div className="mt-4 mb-2 text-sm text-gray-700 line-clamp-2 italic">
+              {hotel.shortDescription}
             </div>
           )}
-          <div className="flex items-baseline justify-end gap-1">
-            <span className="text-2xl font-bold text-gray-900">
-              {hotel.basePricePerNight}
-            </span>
-            <span className="text-lg font-semibold text-gray-900">
-              {hotel.currency === "EUR" ? "€" : hotel.currency}
-            </span>
-            <span className="text-xs text-gray-600">par nuit</span>
-          </div>
         </div>
+      </CardContent>
 
+      {/* SECTION 3 : PRIX & ACTIONS */}
+      <div className="md:w-[20%] w-full flex flex-col justify-between py-7 px-5 border-t md:border-t-0 md:border-l border-gray-100 items-center gap-2 bg-gradient-to-b md:bg-none from-gray-50 to-white">
+        {/* Prix */}
+        <div className="flex flex-col items-center">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl md:text-3xl font-bold text-gray-900">
+              {hotel.basePricePerNight}
+              <span className="ml-1 text-sm font-normal">{hotel.currency}</span>
+            </span>
+            {hotel.regularPrice &&
+              hotel.regularPrice > hotel.basePricePerNight && (
+                <span className="line-through text-gray-400 text-base">
+                  {hotel.regularPrice} {hotel.currency}
+                </span>
+              )}
+          </div>
+          <div className="text-xs text-gray-500">/nuit</div>
+        </div>
+        {/* Cancellation */}
         {hotel.cancellationPolicy && (
-          <p className="text-xs text-green-600 mb-3 flex items-center gap-1">
-            <Check className="w-3 h-3" />
-            {hotel.cancellationPolicy}
-          </p>
+          <div className="flex items-center gap-1 text-green-700 text-xs md:text-sm font-medium mt-2 mb-2">
+            <Check className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">{hotel.cancellationPolicy}</span>
+          </div>
         )}
 
-        <div className="w-full">
-          <div className="flex flex-col gap-2">
-            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-              Vérifier la disponibilité
+        {/* Call-to-action: Réserver centré */}
+        <div className="flex flex-col items-center w-full gap-2 mt-2">
+          <Button
+            size="lg"
+            className="mx-auto w-full max-w-[220px] rounded-full font-bold bg-blue-700 hover:bg-blue-800 focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 transition text-white text-lg shadow-lg uppercase tracking-wider py-3"
+            aria-label="Réserver cet hôtel"
+          >
+            Réserver
+          </Button>
+
+          {/* Boutons secondaires sous le CTA, parfaitement responsives */}
+          <div className="flex w-full gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              className="flex-1 flex items-center justify-center rounded-full border border-rose-200 bg-white hover:bg-rose-50 active:bg-rose-100 shadow-sm gap-2 text-rose-600 font-semibold text-base transition group focus-visible:ring-2 focus-visible:ring-rose-300 min-w-0"
+              aria-label="Ajouter aux favoris"
+              type="button"
+            >
+              <Heart
+                className="w-5 h-5 group-hover:scale-110 group-active:scale-125 transition text-rose-500"
+                strokeWidth={2}
+              />
+              <span className="hidden sm:inline">Favoris</span>
+              <span className="sr-only">Ajouter aux favoris</span>
             </Button>
-
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="flex-1">
-                <Heart className="w-4 h-4 mr-1" />
-                Sauver
-              </Button>
-              <Button variant="outline" size="sm" className="flex-1">
-                <MapPin className="w-4 h-4 mr-1" />
-                Carte
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              size="lg"
+              className="flex-1 flex items-center justify-center rounded-full border border-sky-200 bg-white hover:bg-sky-50 active:bg-sky-100 shadow-sm gap-2 text-sky-700 font-semibold text-base transition group focus-visible:ring-2 focus-visible:ring-sky-300 min-w-0"
+              aria-label="Voir l’hôtel sur la carte"
+              type="button"
+            >
+              <Map
+                className="w-5 h-5 group-hover:scale-110 group-active:scale-125 transition text-sky-700"
+                strokeWidth={2}
+              />
+              <span className="hidden sm:inline">Carte</span>
+              <span className="sr-only">Voir l’hôtel sur la carte</span>
+            </Button>
           </div>
-
-          <p className="text-xs text-gray-500 text-center mt-2">
-            Taxes et frais inclus dans le prix affiché
-          </p>
         </div>
-      </section>
-    </div>
+      </div>
+    </Card>
   );
 }
